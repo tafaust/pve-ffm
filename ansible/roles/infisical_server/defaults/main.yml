@@ -1,0 +1,16 @@
+---
+# Pin tag: https://hub.docker.com/r/infisical/infisical/tags
+infisical_image: infisical/infisical:v0.149.6
+infisical_compose_dir: /opt/infisical
+infisical_listen_port: 80
+infisical_site_url: "http://127.0.0.1"
+
+infisical_postgres_user: infisical
+infisical_postgres_db: infisical
+# Set via Vault / -e @secrets (never commit).
+infisical_postgres_password: ""
+infisical_encryption_key: ""
+infisical_auth_secret: ""
+
+infisical_postgres_image: postgres:14-alpine
+infisical_redis_image: redis:7-alpine

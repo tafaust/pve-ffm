@@ -1,0 +1,7 @@
+---
+- name: OpenLDAP (slapd) on ldap_servers
+  hosts: ldap_servers
+  become: true
+  tags: [ldap, openldap, identity]
+  roles:
+    - role: openldap_server

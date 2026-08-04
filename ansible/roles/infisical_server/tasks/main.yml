@@ -1,0 +1,19 @@
+---
+- name: Require Infisical secrets
+  ansible.builtin.assert:
+    that:
+      - infisical_encryption_key | length > 0
+      - infisical_auth_secret | length > 0
+      - infisical_postgres_password | length > 0
+    fail_msg: >-
+      Set infisical_encryption_key, infisical_auth_secret, infisical_postgres_password
+      (Vault or -e @secrets.yml). Generate: openssl rand -hex 16; openssl rand -base64 32
+
+- name: Include Debian/Ubuntu Docker Compose install
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Unsupported OS for infisical_server
+  ansible.builtin.fail:
+    msg: "infisical_server: no tasks for {{ ansible_distribution }} ({{ ansible_os_family }})."
+  when: ansible_os_family != "Debian"

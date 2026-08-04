@@ -1,0 +1,15 @@
+---
+# Infisical self-host: harden guest, then Docker Compose (Postgres + Redis + backend).
+- name: Baseline hardening on Infisical host
+  hosts: infisical_servers
+  become: true
+  tags: [hardening, security]
+  roles:
+    - role: common_hardening
+
+- name: Infisical (Docker Compose)
+  hosts: infisical_servers
+  become: true
+  tags: [infisical, secrets]
+  roles:
+    - role: infisical_server

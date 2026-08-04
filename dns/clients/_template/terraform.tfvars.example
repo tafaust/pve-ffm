@@ -1,0 +1,10 @@
+# Example tfvars (Hetzner root)
+
+Use with `dns/terraform/environments/hetzner/`:
+
+```hcl
+zone_name               = "example.com"
+create_mailcow_records  = false
+```
+
+For Mailcow, see `../example-hetzner/terraform.tfvars.example`.

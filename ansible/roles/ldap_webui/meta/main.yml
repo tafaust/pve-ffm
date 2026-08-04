@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: ldap_webui
+  description: phpLDAPadmin (Apache, apt) for local LDAP directory administration.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+dependencies: []

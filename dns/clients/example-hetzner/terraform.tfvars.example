@@ -1,0 +1,14 @@
+# Example client — Hetzner DNS
+
+Copy to `clients/<yourname>/terraform.tfvars` (gitignored) or pass `-var-file` when running Terraform from `dns/terraform/environments/hetzner/`.
+
+```hcl
+zone_name                = "example.com"
+create_mailcow_records   = true
+mail_hostname            = "mail.example.com"
+mail_server_ipv4         = "203.0.113.10"
+dkim_txt_by_name = {
+  "dkim._domainkey" = "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...REPLACE_FROM_MAILCOW_UI"
+}
+dmarc_txt = "v=DMARC1; p=none; rua=mailto:postmaster@example.com"
+```

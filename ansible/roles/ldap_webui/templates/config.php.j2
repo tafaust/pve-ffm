@@ -1,0 +1,14 @@
+<?php
+/** Ansible-managed — homelab phpLDAPadmin (ldap_webui role). */
+
+$config = new Config;
+$config->custom->appearance['hide_template_warning'] = true;
+
+$servers = new Datastore;
+$servers->newServer('ldap_pla');
+$servers->setValue('server', 'name', '{{ ldap_webui_server_label }}');
+$servers->setValue('server', 'host', '{{ ldap_webui_ldap_uri }}');
+$servers->setValue('server', 'port', 0);
+$servers->setValue('server', 'tls', {{ ldap_webui_ldap_starttls }});
+$servers->setValue('server', 'base', ['{{ ldap_base_dn }}']);
+$servers->setValue('login', 'bind_id', '{{ ldap_admin_bind_dn }}');

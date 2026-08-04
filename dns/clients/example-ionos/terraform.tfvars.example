@@ -1,0 +1,13 @@
+# IONOS example
+
+Use with `dns/terraform/environments/ionos/`.
+
+```hcl
+zone_name               = "example.com"
+create_mailcow_records  = true
+mail_hostname           = "mail.example.com"
+mail_server_ipv4        = "203.0.113.10"
+dkim_txt_by_name = {
+  "dkim._domainkey" = "v=DKIM1; ...from Mailcow UI..."
+}
+```

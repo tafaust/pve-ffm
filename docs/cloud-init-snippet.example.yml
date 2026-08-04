@@ -1,0 +1,12 @@
+# Example cloud-init snippet — attach guest NIC to internal bridge (Proxmox UI / API).
+# Replace `vmbr2` / `192.168.20.x` with your plan. Merge into a full `user-data` as needed.
+#cloud-config
+runcmd: []
+# Prefer declarative network config per distro; below is illustrative only.
+write_files:
+  - path: /etc/homelab-network-note.txt
+    content: |
+      Attach NIC to bridge vmbr2 in PVE; use static 192.168.20.0/24 from DHCP pool or static map.
+      homelab_internal_bridge=vmbr2
+      homelab_internal_cidr=192.168.20.0/24
+    permissions: "0644"

@@ -1,0 +1,32 @@
+# Longhorn distributed block storage for bare-metal lab nodes (same L2).
+# Helm repo: https://charts.longhorn.io/ chart: longhorn
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+    gitops.scaffold/chart-pin: "helm search repo longhorn/longhorn --versions | head"
+spec:
+  project: platform
+  source:
+    repoURL: https://charts.longhorn.io/
+    chart: longhorn
+    targetRevision: 1.8.1
+    helm:
+      releaseName: longhorn
+      values: |
+        defaultSettings:
+          defaultReplicaCount: "2"
+        persistence:
+          defaultClass: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

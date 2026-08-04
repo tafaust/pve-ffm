@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    gitops.scaffold/notes: "Kustomize overlay patches upstream metrics-server; pin upstream release in kustomization.yaml."
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/tafaust/pve-ffm.git
+    targetRevision: main
+    path: clusters/prod/manifests/metrics-server/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

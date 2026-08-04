@@ -1,0 +1,19 @@
+# Ansible-managed — phpLDAPadmin on {{ ldap_webui_listen_port }} (lab/VPN only).
+# Listen is in ports.conf only (duplicate Listen here breaks apache2ctl).
+<VirtualHost *:{{ ldap_webui_listen_port }}>
+    ServerName {{ ldap_webui_server_label }}
+    DocumentRoot /var/www/html
+
+    Alias /phpldapadmin /usr/share/phpldapadmin/htdocs
+
+    <Directory /usr/share/phpldapadmin/htdocs>
+        DirectoryIndex index.php
+        Options +FollowSymLinks
+        AllowOverride None
+        Require all granted
+
+        <IfModule mod_php.c>
+            php_admin_value open_basedir /tmp:/usr/share/phpldapadmin/:/usr/share/doc/phpldapadmin:/etc/phpldapadmin/
+        </IfModule>
+    </Directory>
+</VirtualHost>

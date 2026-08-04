@@ -1,0 +1,25 @@
+# SigNoz k8s-infra chart — cluster metrics, kubelet/cAdvisor-style stats, host metrics, logs.
+# Chart: signoz/k8s-infra from https://charts.signoz.io
+# Docs: https://signoz.io/docs/opentelemetry-collection-agents/k8s/k8s-infra/
+
+clusterName: homelab-prod
+
+global:
+  clusterName: homelab-prod
+  cloud: other
+
+# gRPC OTLP to in-cluster SigNoz collector (release name `signoz`, namespace `observability`).
+otelCollectorEndpoint: signoz-otel-collector.observability.svc.cluster.local:4317
+otelInsecure: true
+
+# Homelab-friendly agent footprint (DaemonSet + deployment collectors).
+otelAgent:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+otelDeployment:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi

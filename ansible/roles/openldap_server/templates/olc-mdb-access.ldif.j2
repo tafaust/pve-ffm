@@ -1,0 +1,10 @@
+dn: {{ openldap_mdb_config_dn }}
+changetype: modify
+add: olcAccess
+olcAccess: {70}to attrs=userPassword,shadowLastChange by dn="{{ ldap_admin_bind_dn }}" write by anonymous auth by self write by * none
+-
+add: olcAccess
+olcAccess: {71}to * by dn="{{ ldap_admin_bind_dn }}" write by * read
+-
+add: olcAccess
+olcAccess: {72}to dn.base="" by * read

@@ -1,0 +1,6 @@
+{% for ou in openldap_organizational_units %}
+dn: ou={{ ou }},{{ ldap_base_dn }}
+objectClass: organizationalUnit
+ou: {{ ou }}
+
+{% endfor %}

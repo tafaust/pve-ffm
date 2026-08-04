@@ -1,0 +1,35 @@
+# SigNoz — official Helm chart (not Bitnami). Requires Argo CD 2.6+ (`spec.sources`).
+# Install guide: https://signoz.io/docs/install/kubernetes/
+# Helm repo: https://charts.signoz.io  chart: signoz  (pin matches `targetRevision` below)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+  annotations:
+    homelab.scaffold/chart-pin: "helm search repo signoz/signoz --versions | head"
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: homelab
+  sources:
+    - repoURL: https://charts.signoz.io
+      chart: signoz
+      targetRevision: "0.122.0"
+      helm:
+        releaseName: signoz
+        valueFiles:
+          - $values/base/values.yaml
+          - $values/overlays/prod/values.yaml
+    - repoURL: https://github.com/REPLACE_ME/pve-ffm.git
+      targetRevision: main
+      ref: values
+      path: clusters/prod/manifests/signoz
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

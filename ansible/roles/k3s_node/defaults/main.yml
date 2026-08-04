@@ -1,0 +1,21 @@
+---
+k3s_version: "v1.31.5+k3s1"
+# server | agent
+k3s_node_role: server
+# Bind / advertise on this address (inventory ansible_host is typical for single-NIC lab VMs).
+k3s_bind_address: "{{ ansible_host }}"
+k3s_advertise_address: "{{ k3s_bind_address }}"
+# Extra API SANs (DNS names clients use for kube-apiserver).
+k3s_tls_san: []
+# Cilium: no flannel, no kube default network policy controller.
+k3s_server_install_flags: >-
+  --flannel-backend=none
+  --disable-network-policy
+  --write-kubeconfig-mode 600
+  --disable=traefik
+  --disable=servicelb
+k3s_agent_install_flags: "--flannel-backend=none"
+# Agent only: API URL of first server (https://IP:6443).
+k3s_url: ""
+# Agent only: node token from server (`sudo cat /var/lib/rancher/k3s/server/node-token`).
+k3s_registration_token: ""

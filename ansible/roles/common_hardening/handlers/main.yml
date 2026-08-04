@@ -1,0 +1,32 @@
+---
+- name: Reload sshd
+  ansible.builtin.service:
+    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+    state: reloaded
+
+- name: Restart fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: restarted
+
+- name: Apply sysctl
+  ansible.builtin.command: sysctl --system
+  changed_when: true
+
+- name: Remount run shm
+  ansible.builtin.command: mount -o remount /run/shm
+  changed_when: true
+
+- name: Reload audit rules
+  ansible.builtin.command: augenrules --load
+  register: _augenrules
+  failed_when: false
+  changed_when: _augenrules.rc == 0
+
+- name: Remount dev shm
+  ansible.builtin.command: mount -o remount /dev/shm
+  changed_when: true
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true

@@ -1,0 +1,11 @@
+# Managed by Ansible (common_hardening)
+[Unit]
+Description=Daily homelab zypper update
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

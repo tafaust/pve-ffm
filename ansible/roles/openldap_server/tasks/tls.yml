@@ -1,0 +1,120 @@
+---
+- name: Install openssl for certificate generation
+  ansible.builtin.apt:
+    name: openssl
+    state: present
+  when: openldap_tls_enabled | bool
+
+- name: Ensure TLS directory exists
+  ansible.builtin.file:
+    path: "{{ openldap_tls_dir }}"
+    state: directory
+    owner: root
+    group: "{{ openldap_tls_key_group }}"
+    mode: "0750"
+  when: openldap_tls_enabled | bool
+
+- name: Check for existing LDAP TLS certificate
+  ansible.builtin.stat:
+    path: "{{ openldap_tls_cert_file }}"
+  register: _openldap_tls_cert_stat
+  when: openldap_tls_enabled | bool
+
+- name: Generate homelab LDAP TLS key and certificate
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -nodes
+      - -newkey
+      - rsa:4096
+      - -sha256
+      - -days
+      - "{{ openldap_tls_cert_days | string }}"
+      - -subj
+      - "/CN={{ openldap_tls_cert_cn }}"
+      - -keyout
+      - "{{ openldap_tls_key_file }}"
+      - -out
+      - "{{ openldap_tls_cert_file }}"
+  args:
+    creates: "{{ openldap_tls_cert_file }}"
+  when:
+    - openldap_tls_enabled | bool
+    - not _openldap_tls_cert_stat.stat.exists
+
+- name: Install CA bundle for slapd (homelab self-signed)
+  ansible.builtin.copy:
+    src: "{{ openldap_tls_cert_file }}"
+    dest: "{{ openldap_tls_ca_file }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: openldap_tls_enabled | bool
+
+- name: Set slapd-readable permissions on TLS key
+  ansible.builtin.file:
+    path: "{{ openldap_tls_key_file }}"
+    owner: root
+    group: "{{ openldap_tls_key_group }}"
+    mode: "0640"
+  when: openldap_tls_enabled | bool
+
+- name: Check whether olc TLS certificate is configured
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ldapsearch -Y EXTERNAL -H ldapi:/// -LLL -b cn=config '(olcTLSCertificateFile=*)' olcTLSCertificateFile \
+      | grep -Fq "{{ openldap_tls_cert_file }}"
+  args:
+    executable: /bin/bash
+  register: _openldap_olc_tls_grep
+  failed_when: false
+  changed_when: false
+  when: openldap_tls_enabled | bool
+
+- name: Deploy slapd TLS cn=config LDIF
+  ansible.builtin.template:
+    src: olc-tls.ldif.j2
+    dest: /tmp/ansible-openldap-olc-tls.ldif
+    mode: "0600"
+  when:
+    - openldap_tls_enabled | bool
+    - _openldap_olc_tls_grep.rc != 0
+
+- name: Apply slapd TLS cn=config
+  ansible.builtin.command:
+    argv:
+      - ldapmodify
+      - -Y
+      - EXTERNAL
+      - -H
+      - ldapi:///
+      - -f
+      - /tmp/ansible-openldap-olc-tls.ldif
+  register: _openldap_olc_tls_apply
+  changed_when: _openldap_olc_tls_apply.rc == 0
+  failed_when: _openldap_olc_tls_apply.rc != 0
+  when:
+    - openldap_tls_enabled | bool
+    - _openldap_olc_tls_grep.rc != 0
+
+- name: Enable LDAPS listener in SLAPD_SERVICES
+  ansible.builtin.lineinfile:
+    path: /etc/default/slapd
+    regexp: '^SLAPD_SERVICES='
+    line: 'SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"'
+  notify: Restart slapd
+  when: openldap_tls_enabled | bool
+
+- name: Flush handlers so LDAPS is listening before wait
+  ansible.builtin.meta: flush_handlers
+  when: openldap_tls_enabled | bool
+
+- name: Wait for LDAPS after slapd restart
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 636
+    timeout: 120
+  when: openldap_tls_enabled | bool

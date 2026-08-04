@@ -1,0 +1,2 @@
+# Pin range for homelab playbooks (YAML, collections on demand).
+ansible-core>=2.15,<2.19

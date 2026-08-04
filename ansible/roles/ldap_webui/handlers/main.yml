@@ -1,0 +1,16 @@
+---
+- name: Validate Apache configuration
+  listen: Reload Apache
+  ansible.builtin.command:
+    argv:
+      - apache2ctl
+      - configtest
+  register: _ldap_webui_apache_configtest
+  changed_when: false
+
+- name: Reload Apache service
+  listen: Reload Apache
+  ansible.builtin.service:
+    name: apache2
+    state: reloaded
+  when: _ldap_webui_apache_configtest.rc == 0

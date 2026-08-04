@@ -1,0 +1,17 @@
+---
+# OpenLDAP (openldap_server role) — debconf DNS domain → suffix dc=tafaust,dc=org
+ldap_server_domain: tafaust.org
+ldap_organization: tafaust
+
+# Dedicated LDAP VM: no k3s-wide lab allow-all; explicit ports from lab + VPN CIDRs.
+common_hardening_ufw_allow_lab_cidr_all: false
+# Remote LDAPS only; plain 389 is localhost / lab apps (not in UFW allow list).
+common_hardening_ufw_allowed_tcp_ports:
+  - 22
+  - 636
+  - "{{ ldap_webui_listen_port }}"
+ldap_webui_listen_port: 8080
+common_hardening_ufw_revoke_tcp_ports:
+  - 389
+openldap_tls_enabled: true
+openldap_remote_plain_ldap: false

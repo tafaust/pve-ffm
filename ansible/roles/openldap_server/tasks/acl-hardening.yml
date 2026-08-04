@@ -1,0 +1,43 @@
+---
+# Remove Debian default world-read ACL and ensure bm-uni-style rules exist.
+
+- name: List current olcAccess values
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ldapsearch -Y EXTERNAL -H ldapi:/// -LLL -b "{{ openldap_mdb_config_dn }}" olcAccess \
+      | sed -n 's/^olcAccess: //p'
+  args:
+    executable: /bin/bash
+  register: _openldap_olc_access_list
+  changed_when: false
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_harden_default_acls | bool
+
+- name: Deploy olcAccess cleanup LDIF
+  ansible.builtin.template:
+    src: olc-mdb-access-cleanup.ldif.j2
+    dest: /tmp/ansible-openldap-olc-access-cleanup.ldif
+    mode: "0600"
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_harden_default_acls | bool
+    - _openldap_olc_access_list.stdout is search('to \\* by \\* read')
+
+- name: Apply olcAccess cleanup
+  ansible.builtin.command:
+    argv:
+      - ldapmodify
+      - -Y
+      - EXTERNAL
+      - -H
+      - ldapi:///
+      - -f
+      - /tmp/ansible-openldap-olc-access-cleanup.ldif
+  register: _openldap_acl_cleanup
+  changed_when: _openldap_acl_cleanup.rc == 0
+  failed_when: _openldap_acl_cleanup.rc != 0
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_harden_default_acls | bool
+    - _openldap_olc_access_list.stdout is search('to \\* by \\* read')

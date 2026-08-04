@@ -1,0 +1,16 @@
+# Managed by Ansible (common_hardening)
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 {{ homelab_internal_cidr }}{% for cidr in homelab_ssh_allow_extra_cidrs %} {{ cidr }}{% endfor %}
+
+[sshd]
+enabled = true
+port = {{ homelab_ssh_port }}
+filter = sshd
+{% if ansible_os_family == 'Suse' %}
+backend = systemd
+{% else %}
+logpath = /var/log/auth.log
+{% endif %}
+maxretry = {{ common_hardening_fail2ban_maxretry }}
+bantime = {{ common_hardening_fail2ban_bantime }}
+findtime = {{ common_hardening_fail2ban_findtime }}

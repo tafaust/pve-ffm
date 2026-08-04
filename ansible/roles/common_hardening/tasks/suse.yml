@@ -1,0 +1,246 @@
+---
+- name: Refresh zypper repos (openSUSE)
+  ansible.builtin.zypper:
+    update_cache: true
+
+- name: Upgrade installed packages (rolling baseline)
+  ansible.builtin.zypper:
+    name: "*"
+    state: latest
+  when: common_hardening_apt_upgrade | bool
+  tags: [upgrade]
+
+- name: Install firewalld
+  ansible.builtin.zypper:
+    name: firewalld
+    state: present
+  when: common_hardening_manage_ufw | bool
+
+- name: Enable and start firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+  when: common_hardening_manage_ufw | bool
+
+- name: Deploy unattended zypper update service
+  ansible.builtin.template:
+    src: homelab-zypper-update.service.j2
+    dest: /etc/systemd/system/homelab-zypper-update.service
+    mode: "0644"
+  when: common_hardening_manage_unattended | bool
+
+- name: Deploy unattended zypper update timer
+  ansible.builtin.template:
+    src: homelab-zypper-update.timer.j2
+    dest: /etc/systemd/system/homelab-zypper-update.timer
+    mode: "0644"
+  when: common_hardening_manage_unattended | bool
+
+- name: Enable daily unattended zypper updates
+  ansible.builtin.systemd:
+    name: homelab-zypper-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: common_hardening_manage_unattended | bool
+
+- name: Query firewalld rich rule for SSH from homelab internal CIDR
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --query-rich-rule
+      - 'rule family="ipv4" source address="{{ homelab_internal_cidr }}" port port="{{ homelab_ssh_port }}" protocol="tcp" accept'
+  register: _fw_ssh_lab_q
+  failed_when: false
+  changed_when: false
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+
+- name: Allow SSH from homelab internal CIDR (firewalld)
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --add-rich-rule
+      - 'rule family="ipv4" source address="{{ homelab_internal_cidr }}" port port="{{ homelab_ssh_port }}" protocol="tcp" accept'
+  register: _fw_ssh_lab
+  changed_when: _fw_ssh_lab.rc == 0
+  failed_when: false
+  notify: Reload firewalld
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+    - _fw_ssh_lab_q.rc != 0
+
+- name: Allow SSH from extra CIDRs (firewalld)
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --add-rich-rule
+      - 'rule family="ipv4" source address="{{ item }}" port port="{{ homelab_ssh_port }}" protocol="tcp" accept'
+  register: _fw_ssh_extra
+  changed_when: _fw_ssh_extra.rc == 0
+  failed_when: false
+  notify: Reload firewalld
+  loop: "{{ homelab_ssh_allow_extra_cidrs }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - homelab_ssh_allow_extra_cidrs | length > 0
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+
+- name: Query firewalld allow-all rich rule from homelab internal CIDR
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --query-rich-rule
+      - 'rule family="ipv4" source address="{{ homelab_internal_cidr }}" accept'
+  register: _fw_lab_any_q
+  failed_when: false
+  changed_when: false
+  when: common_hardening_manage_ufw | bool
+
+- name: Remove firewalld allow-all from homelab internal CIDR (restricted mode)
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --remove-rich-rule
+      - 'rule family="ipv4" source address="{{ homelab_internal_cidr }}" accept'
+  register: _fw_del_lab_any
+  failed_when: false
+  changed_when: _fw_del_lab_any.rc == 0
+  notify: Reload firewalld
+  when:
+    - common_hardening_manage_ufw | bool
+    - not (common_hardening_ufw_allow_lab_cidr_all | bool)
+    - _fw_lab_any_q.rc == 0
+
+- name: Allow TCP ports from trusted CIDRs (firewalld restricted mode)
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --add-rich-rule
+      - 'rule family="ipv4" source address="{{ item.0 }}" port port="{{ item.1 }}" protocol="tcp" accept'
+  register: _fw_restricted
+  changed_when: _fw_restricted.rc == 0
+  failed_when: false
+  notify: Reload firewalld
+  loop: "{{ (homelab_ssh_allow_extra_cidrs + [homelab_internal_cidr]) | unique | product(common_hardening_ufw_allowed_tcp_ports) | list }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - not (common_hardening_ufw_allow_lab_cidr_all | bool)
+    - common_hardening_ufw_allowed_tcp_ports | length > 0
+
+- name: Allow all traffic from homelab internal CIDR (firewalld)
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --permanent
+      - --zone=public
+      - --add-rich-rule
+      - 'rule family="ipv4" source address="{{ homelab_internal_cidr }}" accept'
+  register: _fw_lab_any
+  changed_when: _fw_lab_any.rc == 0
+  failed_when: false
+  notify: Reload firewalld
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+    - _fw_lab_any_q.rc != 0
+
+- name: Install OpenSSH for hardening drop-in
+  ansible.builtin.zypper:
+    name: openssh
+    state: present
+  when: common_hardening_manage_sshd | bool
+
+- name: Install OpenSSH server hardening drop-in
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-homelab-hardening.conf
+    mode: "0644"
+  notify: Reload sshd
+  when: common_hardening_manage_sshd | bool
+
+- name: Install fail2ban
+  ansible.builtin.zypper:
+    name: fail2ban
+    state: present
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Configure fail2ban jail.local
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: "0644"
+  notify: Restart fail2ban
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Enable and start fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Install audit
+  ansible.builtin.zypper:
+    name: audit
+    state: present
+  when: common_hardening_manage_auditd | bool
+
+- name: Enable and start auditd
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
+  when: common_hardening_manage_auditd | bool
+
+- name: Install kernel sysctl hardening drop-in
+  ansible.builtin.template:
+    src: sysctl-hardening.conf.j2
+    dest: /etc/sysctl.d/99-homelab-hardening.conf
+    mode: "0644"
+  notify: Apply sysctl
+  when: common_hardening_manage_sysctl | bool
+
+- name: Check whether /dev/shm is in fstab
+  ansible.builtin.command: grep -q '[[:space:]]/dev/shm[[:space:]]' /etc/fstab
+  register: _shm_fstab
+  failed_when: false
+  changed_when: false
+  when: common_hardening_manage_shm | bool
+
+- name: Secure /dev/shm in fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "tmpfs /dev/shm tmpfs defaults,noexec,nosuid 0 0"
+    state: present
+    create: false
+  notify: Remount dev shm
+  when:
+    - common_hardening_manage_shm | bool
+    - _shm_fstab.rc != 0
+
+- name: Verify AppArmor is active
+  ansible.builtin.command: systemctl is-active apparmor
+  register: _apparmor_active
+  changed_when: false
+  failed_when: _apparmor_active.stdout != "active"
+  when: common_hardening_verify_apparmor | bool
+
+- name: Apply CIS-lite extras
+  ansible.builtin.include_tasks: cis-lite.yml
+  when: common_hardening_cis_lite | bool

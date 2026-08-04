@@ -1,0 +1,4 @@
+dn: {{ openldap_mdb_config_dn }}
+changetype: modify
+replace: olcSizeLimit
+olcSizeLimit: {{ openldap_olc_sizelimit }}

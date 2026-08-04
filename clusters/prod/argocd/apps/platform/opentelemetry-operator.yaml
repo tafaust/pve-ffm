@@ -1,0 +1,38 @@
+# OpenTelemetry Operator — optional; enables Instrumentation / OpenTelemetryCollector CRDs for auto-instrumentation.
+# Upstream chart: https://github.com/open-telemetry/opentelemetry-helm-charts
+# Install doc: https://opentelemetry.io/docs/platforms/kubernetes/helm/operator/
+# Auto-instrumentation is language- and version-dependent; see operator docs before relying on it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentelemetry-operator
+  namespace: argocd
+  annotations:
+    homelab.scaffold/chart-pin: "helm search repo open-telemetry/opentelemetry-operator --versions | head"
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: homelab
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-operator
+    targetRevision: "0.113.0"
+    helm:
+      releaseName: opentelemetry-operator
+      values: |
+        manager:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+        admissionWebhooks:
+          certManager:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opentelemetry-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

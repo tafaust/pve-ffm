@@ -1,0 +1,13 @@
+---
+- name: Recreate Infisical stack
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ infisical_compose_dir }}/docker-compose.yml"
+      - up
+      - -d
+      - --remove-orphans
+  args:
+    chdir: "{{ infisical_compose_dir }}"

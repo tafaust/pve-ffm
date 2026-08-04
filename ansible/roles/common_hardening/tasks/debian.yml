@@ -1,0 +1,271 @@
+---
+- name: Refresh apt cache (Ubuntu / Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade installed packages (security baseline)
+  ansible.builtin.apt:
+    upgrade: safe
+  when: common_hardening_apt_upgrade | bool
+  tags: [upgrade]
+
+- name: Install unattended-upgrades and UFW
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - ufw
+    state: present
+  when: common_hardening_manage_unattended | bool or common_hardening_manage_ufw | bool
+
+- name: Enable unattended security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99hardening-auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+  when: common_hardening_manage_unattended | bool
+
+- name: UFW default deny incoming
+  ansible.builtin.command: ufw default deny incoming
+  register: _ufw_deny_in
+  changed_when: "'Default incoming policy changed' in _ufw_deny_in.stdout"
+  when: common_hardening_manage_ufw | bool
+
+- name: UFW default allow outgoing
+  ansible.builtin.command: ufw default allow outgoing
+  register: _ufw_allow_out
+  changed_when: "'Default outgoing policy changed' in _ufw_allow_out.stdout"
+  when: common_hardening_manage_ufw | bool
+
+- name: UFW allow SSH from homelab internal CIDR
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - allow
+      - from
+      - "{{ homelab_internal_cidr }}"
+      - to
+      - any
+      - port
+      - "{{ homelab_ssh_port }}"
+      - proto
+      - tcp
+  register: _ufw_ssh_lab
+  changed_when: "'Skipping' not in _ufw_ssh_lab.stdout"
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+
+- name: UFW allow SSH from extra CIDRs
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - allow
+      - from
+      - "{{ item }}"
+      - to
+      - any
+      - port
+      - "{{ homelab_ssh_port }}"
+      - proto
+      - tcp
+  register: _ufw_ssh_extra
+  changed_when: "'Skipping' not in _ufw_ssh_extra.stdout"
+  loop: "{{ homelab_ssh_allow_extra_cidrs }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - homelab_ssh_allow_extra_cidrs | length > 0
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+
+- name: Remove UFW allow-all from lab CIDR when using restricted mode
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - --force
+      - delete
+      - allow
+      - from
+      - "{{ homelab_internal_cidr }}"
+  register: _ufw_del_lab_any
+  failed_when: false
+  changed_when: _ufw_del_lab_any.rc == 0
+  when:
+    - common_hardening_manage_ufw | bool
+    - not (common_hardening_ufw_allow_lab_cidr_all | bool)
+
+- name: UFW allow TCP ports from trusted CIDRs (restricted mode)
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - allow
+      - from
+      - "{{ item.0 }}"
+      - to
+      - any
+      - port
+      - "{{ item.1 }}"
+      - proto
+      - tcp
+  register: _ufw_restricted
+  changed_when: "'Skipping' not in _ufw_restricted.stdout"
+  loop: "{{ (homelab_ssh_allow_extra_cidrs + [homelab_internal_cidr]) | unique | product(common_hardening_ufw_allowed_tcp_ports) | list }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - not (common_hardening_ufw_allow_lab_cidr_all | bool)
+    - common_hardening_ufw_allowed_tcp_ports | length > 0
+
+- name: Revoke UFW TCP rules for retired ports
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - --force
+      - delete
+      - allow
+      - from
+      - "{{ item.0 }}"
+      - to
+      - any
+      - port
+      - "{{ item.1 }}"
+      - proto
+      - tcp
+  register: _ufw_revoke
+  failed_when: false
+  changed_when: _ufw_revoke.rc == 0
+  loop: "{{ (homelab_ssh_allow_extra_cidrs + [homelab_internal_cidr]) | unique | product(common_hardening_ufw_revoke_tcp_ports) | list }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_revoke_tcp_ports | length > 0
+
+- name: Revoke all UFW allow rules from retired source CIDRs
+  ansible.builtin.shell: |
+    set -euo pipefail
+    CIDR='{{ item }}'
+    changed=0
+    while read -r num _; do
+      [[ -n "${num}" ]] || continue
+      if ufw --force delete "${num}"; then
+        changed=1
+      fi
+    done < <(ufw status numbered | tac | awk -v cidr="${CIDR}" '/ALLOW IN/ && $0 ~ cidr { gsub(/[][]/,"",$1); print $1 }')
+    if [[ "$changed" -eq 1 ]]; then echo CHANGED; fi
+  args:
+    executable: /bin/bash
+  register: _ufw_revoke_cidr
+  changed_when: "'CHANGED' in (_ufw_revoke_cidr.stdout | default(''))"
+  failed_when: false
+  loop: "{{ homelab_ufw_revoke_source_cidrs }}"
+  when:
+    - common_hardening_manage_ufw | bool
+    - homelab_ufw_revoke_source_cidrs | length > 0
+
+- name: UFW allow all from homelab internal CIDR (k3s / Cilium / internal services)
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - allow
+      - from
+      - "{{ homelab_internal_cidr }}"
+  register: _ufw_lab_any
+  changed_when: "'Skipping' not in _ufw_lab_any.stdout"
+  when:
+    - common_hardening_manage_ufw | bool
+    - common_hardening_ufw_allow_lab_cidr_all | bool
+
+- name: Check UFW status
+  ansible.builtin.command: ufw status
+  register: _ufw_status
+  changed_when: false
+  when: common_hardening_manage_ufw | bool
+
+- name: Enable UFW
+  ansible.builtin.command: ufw --force enable
+  register: _ufw_enable
+  changed_when: false
+  when:
+    - common_hardening_manage_ufw | bool
+    - "'Status: active' not in _ufw_status.stdout"
+
+- name: Install OpenSSH server hardening drop-in
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-homelab-hardening.conf
+    mode: "0644"
+  notify: Reload sshd
+  when: common_hardening_manage_sshd | bool
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Configure fail2ban jail.local
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: "0644"
+  notify: Restart fail2ban
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Enable and start fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  when: common_hardening_manage_fail2ban | bool
+
+- name: Install auditd
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+  when: common_hardening_manage_auditd | bool
+
+- name: Enable and start auditd
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
+  when: common_hardening_manage_auditd | bool
+
+- name: Install kernel sysctl hardening drop-in
+  ansible.builtin.template:
+    src: sysctl-hardening.conf.j2
+    dest: /etc/sysctl.d/99-homelab-hardening.conf
+    mode: "0644"
+  notify: Apply sysctl
+  when: common_hardening_manage_sysctl | bool
+
+- name: Check whether /run/shm is in fstab
+  ansible.builtin.command: grep -q '[[:space:]]/run/shm[[:space:]]' /etc/fstab
+  register: _shm_fstab
+  failed_when: false
+  changed_when: false
+  when: common_hardening_manage_shm | bool
+
+- name: Secure /run/shm in fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "tmpfs /run/shm tmpfs defaults,noexec,nosuid 0 0"
+    state: present
+    create: false
+  notify: Remount run shm
+  when:
+    - common_hardening_manage_shm | bool
+    - _shm_fstab.rc != 0
+
+- name: Verify AppArmor is active
+  ansible.builtin.command: systemctl is-active apparmor
+  register: _apparmor_active
+  changed_when: false
+  failed_when: _apparmor_active.stdout != "active"
+  when: common_hardening_verify_apparmor | bool
+
+- name: Apply CIS-lite extras
+  ansible.builtin.include_tasks: cis-lite.yml
+  when: common_hardening_cis_lite | bool

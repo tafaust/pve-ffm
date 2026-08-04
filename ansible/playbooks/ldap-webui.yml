@@ -1,0 +1,9 @@
+---
+# phpLDAPadmin (apt + Apache) on ldap_servers — after slapd. Lab/VPN only (UFW in group_vars).
+- name: LDAP Web UI (phpLDAPadmin)
+  hosts: ldap_servers
+  become: true
+  tags: [ldap, webui, identity]
+  roles:
+    - role: ldap_webui
+      when: ldap_webui_enabled | bool

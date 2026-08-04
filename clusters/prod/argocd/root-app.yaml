@@ -1,0 +1,24 @@
+# Root Application — replace REPLACE_ME with your fork; pin targetRevision.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-50"
+    gitops.scaffold/notes: "Pin targetRevision to a tag; repoURL must be your fork."
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/tafaust/pve-ffm.git
+    targetRevision: main
+    path: clusters/prod/apps/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

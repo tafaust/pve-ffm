@@ -1,0 +1,25 @@
+# Infisical — scaffold uses in-repo Kustomize (namespace only).
+# Production: use Infisical Helm chart + ExternalSecrets; see docs/architecture.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infisical
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+    gitops.scaffold/notes: "Helm: see https://infisical.com/docs/self-hosting/deployment/kubernetes/helm — pin chart version."
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/tafaust/pve-ffm.git
+    targetRevision: main
+    path: clusters/prod/manifests/infisical
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: infisical
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

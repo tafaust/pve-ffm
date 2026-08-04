@@ -1,0 +1,51 @@
+---
+# DNS-style domain → suffix e.g. tafaust.org → dc=tafaust,dc=org (override in group_vars/ldap_servers.yml)
+ldap_server_domain: tafaust.org
+ldap_organization: tafaust
+ldap_base_dn: "{{ 'dc=' + ldap_server_domain.replace('.', ',dc=') }}"
+ldap_admin_bind_dn: "cn=admin,{{ ldap_base_dn }}"
+# Required — set via Vault / --extra-vars (never commit plaintext).
+ldap_admin_bind_password: ""
+
+openldap_organizational_units:
+  - users
+  - groups
+  - services
+  - kubernetes
+openldap_create_demo_user: false
+openldap_demo_uid: "10001"
+openldap_demo_gid: "10001"
+openldap_demo_username: demo
+openldap_demo_groupname: demo
+
+# cn=config tuning (bm-uni ldap-02 spirit; dynamic OLC not slapd.conf).
+openldap_olc_tuning: true
+openldap_olc_apply_bmuni_style_acls: true
+openldap_olc_harden_default_acls: true
+openldap_olc_loglevel: stats
+openldap_olc_sizelimit: 1000
+openldap_olc_tool_threads: 2
+openldap_olc_db_indices:
+  - objectClass eq
+  - uid eq
+  - cn eq
+  - memberUid eq
+
+# TLS (homelab self-signed by default; override paths for real certs).
+openldap_tls_enabled: true
+openldap_tls_key_group: openldap
+openldap_tls_dir: /etc/ldap/ssl
+openldap_tls_cert_file: "{{ openldap_tls_dir }}/ldap.crt"
+openldap_tls_key_file: "{{ openldap_tls_dir }}/ldap.key"
+openldap_tls_ca_file: "{{ openldap_tls_dir }}/ca.crt"
+openldap_tls_cert_days: 825
+openldap_tls_cert_cn: "{{ ldap_server_domain }}"
+# When true, UFW should not expose plain 389 remotely (use 636 / StartTLS).
+openldap_remote_plain_ldap: false
+
+# Backups under /var/backups/openldap (slapcat).
+openldap_backup_enabled: true
+openldap_backup_dir: /var/backups/openldap
+openldap_backup_retention_days: 14
+openldap_backup_hour: "3"
+openldap_backup_minute: "15"

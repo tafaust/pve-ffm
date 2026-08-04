@@ -1,0 +1,13 @@
+# Managed by Ansible (common_hardening)
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication {{ 'no' if common_hardening_disable_password_ssh | bool else 'yes' }}
+KbdInteractiveAuthentication no
+X11Forwarding no
+AllowTcpForwarding no
+PermitEmptyPasswords no
+MaxAuthTries {{ common_hardening_sshd_max_auth_tries }}
+MaxSessions {{ common_hardening_sshd_max_sessions }}
+ClientAliveInterval {{ common_hardening_sshd_client_alive_interval }}
+ClientAliveCountMax {{ common_hardening_sshd_client_alive_count_max }}
+AllowUsers{% for u in homelab_sshd_allow_users %} {{ u }}{% endfor %}

@@ -1,0 +1,38 @@
+# SeaweedFS — S3-compatible object storage (Helm).
+# Helm repo: https://seaweedfs.github.io/seaweedfs/helm chart: seaweedfs
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seaweedfs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+    gitops.scaffold/chart-pin: "helm search repo seaweedfs/seaweedfs --versions | head"
+spec:
+  project: platform
+  source:
+    repoURL: https://seaweedfs.github.io/seaweedfs/helm
+    chart: seaweedfs
+    targetRevision: 4.40.0
+    helm:
+      releaseName: seaweedfs
+      values: |
+        global:
+          storageClass: longhorn
+        s3:
+          enabled: true
+        master:
+          replicas: 1
+        volume:
+          replicas: 1
+        filer:
+          replicas: 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: seaweedfs
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

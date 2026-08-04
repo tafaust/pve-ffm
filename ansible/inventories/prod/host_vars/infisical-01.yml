@@ -1,0 +1,4 @@
+---
+ansible_host: infisical-01
+ansible_user: thomas
+ansible_python_interpreter: /usr/bin/python3.12

@@ -1,0 +1,7 @@
+---
+- name: SSSD LDAP client join
+  hosts: all
+  become: true
+  tags: [sssd, ldap, auth, identity]
+  roles:
+    - role: sssd_ldap

@@ -1,0 +1,10 @@
+# Managed by Ansible (common_hardening)
+[Unit]
+Description=Homelab unattended package update (zypper)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/zypper --non-interactive --gpg-auto-import-keys refresh
+ExecStart=/usr/bin/zypper --non-interactive update -y

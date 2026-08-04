@@ -1,0 +1,30 @@
+# Ansible
+*.retry
+ansible/.venv/
+**/vault.yml
+**/vault.yaml
+**/*vault*.yml
+**/*vault*.yaml
+**/group_vars/**/secrets.yml
+**/host_vars/**/secrets.yml
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Kubernetes / TLS material
+kubeconfig
+kubeconfig.*
+*.pem
+*.key
+*.crt
+!**/certs/.gitkeep
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+
+# Terraform (keep **/.terraform.lock.hcl** committed per environment root)
+**/.terraform/

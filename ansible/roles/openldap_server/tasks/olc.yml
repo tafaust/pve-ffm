@@ -1,0 +1,146 @@
+---
+# Dynamic cn=config (OLC) — indices / limits / log / ACLs in spirit of
+# https://bm-uni.de/ldap/ldap-02.html (their slapd.conf; we keep Debian dynamic config).
+
+- name: Discover olcMdbConfig DN for suffix (parse dn + olcSuffix pairs)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    SUF='{{ ldap_base_dn }}'
+    ldapsearch -Y EXTERNAL -H ldapi:/// -LLL -b cn=config -o ldif-wrap=no \
+      '(objectClass=olcMdbConfig)' dn olcSuffix \
+      | awk -v suf="$SUF" '
+        /^dn: / { dn = substr($0, 5) }
+        /^olcSuffix: / {
+          v = $0
+          sub(/^olcSuffix:[[:space:]]+/, "", v)
+          if (v == suf) { print dn; exit }
+        }'
+  args:
+    executable: /bin/bash
+  register: _openldap_mdb_dn_search
+  changed_when: false
+
+- name: Set MDB config DN fact
+  ansible.builtin.set_fact:
+    openldap_mdb_config_dn: "{{ _openldap_mdb_dn_search.stdout | trim }}"
+
+- name: Require discovered MDB cn=config DN
+  ansible.builtin.assert:
+    that:
+      - openldap_mdb_config_dn | length > 0
+    fail_msg: "No olcMdbConfig for olcSuffix={{ ldap_base_dn }}. Check slapd + debconf domain."
+
+- name: Harden default olcAccess rules
+  ansible.builtin.include_tasks: acl-hardening.yml
+
+- name: Tune cn=config log level
+  ansible.builtin.template:
+    src: olc-cn-config-loglevel.ldif.j2
+    dest: /tmp/ansible-openldap-olc-loglevel.ldif
+    mode: "0600"
+  when: openldap_olc_tuning | bool
+
+- name: Apply cn=config log level
+  ansible.builtin.command:
+    argv:
+      - ldapmodify
+      - -Y
+      - EXTERNAL
+      - -H
+      - ldapi:///
+      - -f
+      - /tmp/ansible-openldap-olc-loglevel.ldif
+  register: _olc_log
+  changed_when: >-
+    _olc_log.rc == 0 and (
+    'modifying entry' in (_olc_log.stderr | default('') | lower)
+    or 'modify' in (_olc_log.stdout | default('') | lower)
+    )
+  failed_when: _olc_log.rc != 0
+  when: openldap_olc_tuning | bool
+
+- name: Tune MDB size limit and tool threads
+  ansible.builtin.template:
+    src: olc-mdb-limits.ldif.j2
+    dest: /tmp/ansible-openldap-olc-limits.ldif
+    mode: "0600"
+  when: openldap_olc_tuning | bool
+
+- name: Apply MDB limits
+  ansible.builtin.command:
+    argv:
+      - ldapmodify
+      - -Y
+      - EXTERNAL
+      - -H
+      - ldapi:///
+      - -f
+      - /tmp/ansible-openldap-olc-limits.ldif
+  register: _olc_lim
+  changed_when: >-
+    _olc_lim.rc == 0 and (
+    'modifying entry' in (_olc_lim.stderr | default('') | lower)
+    or 'modify' in (_olc_lim.stdout | default('') | lower)
+    )
+  failed_when: _olc_lim.rc != 0
+  when: openldap_olc_tuning | bool
+
+- name: Install OLC index helper script
+  ansible.builtin.template:
+    src: apply-olc-indices.sh.j2
+    dest: /root/.ansible-openldap-apply-indices.sh
+    mode: "0700"
+  when: openldap_olc_tuning | bool
+
+- name: Apply MDB indices (idempotent)
+  ansible.builtin.command: /root/.ansible-openldap-apply-indices.sh
+  register: _olc_idx
+  changed_when: "'CHANGED' in _olc_idx.stdout"
+  failed_when: _olc_idx.rc != 0
+  when: openldap_olc_tuning | bool
+
+- name: Check bm-uni-style ACL marker
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ldapsearch -Y EXTERNAL -H ldapi:/// -LLL -b "{{ openldap_mdb_config_dn }}" olcAccess \
+      | grep -F 'by dn="{{ ldap_admin_bind_dn }}" write' >/dev/null
+  args:
+    executable: /bin/bash
+  register: _olc_acl_grep
+  failed_when: false
+  changed_when: false
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_apply_bmuni_style_acls | bool
+
+- name: Deploy bm-uni-style olcAccess LDIF
+  ansible.builtin.template:
+    src: olc-mdb-access.ldif.j2
+    dest: /tmp/ansible-openldap-olc-access.ldif
+    mode: "0600"
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_apply_bmuni_style_acls | bool
+    - _olc_acl_grep.rc != 0
+
+- name: Apply bm-uni-style olcAccess
+  ansible.builtin.command:
+    argv:
+      - ldapmodify
+      - -Y
+      - EXTERNAL
+      - -H
+      - ldapi:///
+      - -f
+      - /tmp/ansible-openldap-olc-access.ldif
+  register: _olc_acl
+  changed_when: >-
+    _olc_acl.rc == 0 and (
+    'modifying entry' in (_olc_acl.stderr | default('') | lower)
+    or 'add' in (_olc_acl.stdout | default('') | lower)
+    )
+  failed_when: _olc_acl.rc != 0
+  when:
+    - openldap_olc_tuning | bool
+    - openldap_olc_apply_bmuni_style_acls | bool
+    - _olc_acl_grep.rc != 0

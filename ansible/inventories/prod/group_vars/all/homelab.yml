@@ -1,0 +1,19 @@
+---
+# Homelab network defaults (Proxmox guest NIC on internal bridge).
+# Override: ansible-playbook ... -e homelab_internal_cidr=10.0.50.0/24
+# Bridge name is informational for docs / cloud-init; Linux guests use IP on the subnet.
+homelab_internal_bridge: vmbr2
+homelab_internal_cidr: 192.168.20.0/24
+
+# Site-to-site WireGuard: set to your routed remote prefix (not full 10/8 unless you mean it).
+# Homenet / site-to-site WireGuard source CIDR (SSH + restricted UFW).
+homelab_wireguard_site_cidr: 10.0.0.0/23
+homelab_ssh_allow_extra_cidrs:
+  - "{{ homelab_wireguard_site_cidr }}"
+# Retired UFW source CIDRs to delete after narrowing (playbook removes numbered rules).
+homelab_ufw_revoke_source_cidrs:
+  - 10.0.0.0/8
+  - 10.10.0.0/16
+
+# Optional: split string for firewall templates (derived in playbooks if needed)
+homelab_internal_network: "{{ homelab_internal_cidr }}"

@@ -1,0 +1,46 @@
+# SigNoz Helm values — base layer (homelab defaults).
+# Chart: https://github.com/SigNoz/charts (signoz/signoz from https://charts.signoz.io)
+# Official install: https://signoz.io/docs/install/kubernetes/
+#
+# Single-replica defaults suit one control-plane / single-node pools. For HA, see
+# docs/runbooks/signoz.md and SigNoz sizing docs.
+
+global:
+  clusterName: homelab-prod
+  cloud: other
+  storageClass: null
+
+clusterName: homelab-prod
+
+signoz:
+  ingress:
+    enabled: false
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+
+otelCollector:
+  ingress:
+    enabled: false
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+clickhouse:
+  layout:
+    shardsCount: 1
+    replicasCount: 1
+  zookeeper:
+    replicaCount: 1
+  persistence:
+    enabled: true
+    size: 25Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi

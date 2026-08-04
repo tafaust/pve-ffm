@@ -1,0 +1,7 @@
+---
+- name: Baseline hardening
+  hosts: all
+  become: true
+  tags: [hardening, security]
+  roles:
+    - role: common_hardening

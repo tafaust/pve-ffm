@@ -1,0 +1,19 @@
+---
+sssd_ldap_enabled: false
+# Logical [domain/NAME] in sssd.conf — cosmetic; real tree = ldap_search_base
+sssd_domain: tafaust
+ldap_schema: rfc2307
+ldap_uri: ""
+ldap_search_base: ""
+ldap_user_search_base: ""
+ldap_group_search_base: ""
+ldap_bind_dn: ""
+ldap_bind_password: ""
+ldap_id_use_start_tls: true
+ldap_tls_reqcert: demand
+ldap_tls_cacert: /etc/ssl/certs/ca-certificates.crt
+# Optional PEM string; when set, written to ldap_tls_cacert path (overwrite).
+ldap_tls_cacert_pem: ""
+ldap_access_filter: ""
+# LDAP attribute for SSH keys (e.g. sshPublicKey); empty = omit.
+ldap_ssh_public_key_attr: ""

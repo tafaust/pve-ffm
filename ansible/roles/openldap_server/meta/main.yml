@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: openldap_server
+  author: homelab
+  description: Install slapd (Debian/Ubuntu) and seed base DIT from identity/README sketch
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

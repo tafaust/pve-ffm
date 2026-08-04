@@ -1,0 +1,13 @@
+---
+# k3s cluster (Ubuntu 24.04 Server VMs recommended).
+k3s_version: v1.31.5+k3s1
+# Operator kubeconfig cluster/context name (k3s admin kubeconfig is always "default" until renamed on fetch).
+k3s_cluster_name: k3s-homelab
+# LDAP client: flip true after openldap-server.yml + Vault bind password (see ansible/README.md).
+sssd_ldap_enabled: false
+ldap_uri: "ldaps://192.168.20.7/"
+ldap_tls_reqcert: allow
+ldap_search_base: "dc=tafaust,dc=org"
+ldap_user_search_base: "ou=users,dc=tafaust,dc=org"
+ldap_bind_dn: "cn=admin,dc=tafaust,dc=org"
+# ldap_bind_password: set via Vault / host_vars (never commit)

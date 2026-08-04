@@ -1,0 +1,74 @@
+---
+- name: Require LDAP settings when SSSD enabled
+  ansible.builtin.assert:
+    that:
+      - ldap_uri | length > 0
+      - ldap_search_base | length > 0
+      - ldap_bind_dn | length > 0
+      - ldap_bind_password | length > 0
+
+- name: Install SSSD LDAP client packages
+  ansible.builtin.apt:
+    name:
+      - sssd
+      - sssd-ldap
+      - libnss-sss
+      - libpam-sss
+      - libpam-modules
+      - ldap-utils
+    state: present
+
+- name: Ensure SSSD config directory for custom CA
+  ansible.builtin.file:
+    path: /etc/sssd/pki
+    state: directory
+    mode: "0755"
+
+- name: Install LDAP CA certificate for SSSD
+  ansible.builtin.copy:
+    dest: "{{ ldap_tls_cacert }}"
+    content: "{{ ldap_tls_cacert_pem }}"
+    mode: "0644"
+  when: ldap_tls_cacert_pem | length > 0
+  notify: Restart sssd
+
+- name: Render sssd.conf
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart sssd
+
+- name: Ensure nsswitch includes sss for passwd, group, shadow
+  ansible.builtin.shell: |
+    set -euo pipefail
+    changed=0
+    for t in passwd group shadow; do
+      if grep -qE "^${t}:.*\bsss\b" /etc/nsswitch.conf; then
+        continue
+      fi
+      sed -i "/^${t}:/s/$/ sss/" /etc/nsswitch.conf
+      changed=1
+    done
+    if [ "$changed" = "1" ]; then echo CHANGED; fi
+  args:
+    executable: /bin/bash
+  register: _nss_sss
+  changed_when: "'CHANGED' in _nss_sss.stdout"
+
+- name: Ensure pam_mkhomedir for interactive sessions
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/common-session
+    regexp: '^session\s+optional\s+pam_mkhomedir\.so'
+    line: session optional pam_mkhomedir.so skel=/etc/skel umask=0077
+    state: present
+    insertafter: EOF
+
+- name: Enable and start SSSD
+  ansible.builtin.service:
+    name: sssd
+    state: started
+    enabled: true

@@ -1,0 +1,15 @@
+dn: cn={{ openldap_demo_groupname }},ou=groups,{{ ldap_base_dn }}
+objectClass: posixGroup
+cn: {{ openldap_demo_groupname }}
+gidNumber: {{ openldap_demo_gid }}
+
+dn: uid={{ openldap_demo_username }},ou=users,{{ ldap_base_dn }}
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: {{ openldap_demo_username }}
+sn: {{ openldap_demo_username }}
+cn: {{ openldap_demo_username }}
+uidNumber: {{ openldap_demo_uid }}
+gidNumber: {{ openldap_demo_gid }}
+homeDirectory: /home/{{ openldap_demo_username }}
+loginShell: /bin/bash

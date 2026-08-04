@@ -1,0 +1,9 @@
+---
+- name: Include Debian/Ubuntu bare-metal install
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Unsupported OS for ldap_webui
+  ansible.builtin.fail:
+    msg: "ldap_webui: no tasks for {{ ansible_distribution }} ({{ ansible_os_family }})."
+  when: ansible_os_family != "Debian"

@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Helm values for the official SigNoz chart live as `values.yaml` in this tree.
+# Argo CD references them via `helm.valueFiles` in the `signoz` Application; this file
+# exists so `kustomize build clusters/prod/manifests/signoz/overlays/prod` can be
+# extended later (e.g. extra in-repo manifests) without restructuring.
+resources: []

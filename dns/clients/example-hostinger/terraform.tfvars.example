@@ -1,0 +1,10 @@
+# Hostinger example
+
+Zone must exist in hPanel. Use with `dns/terraform/environments/hostinger/`.
+
+```hcl
+zone                    = "example.com"
+create_mailcow_records  = true
+mail_hostname           = "mail.example.com"
+mail_server_ipv4        = "203.0.113.10"
+```

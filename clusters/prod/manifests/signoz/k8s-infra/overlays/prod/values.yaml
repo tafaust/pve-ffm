@@ -1,0 +1,6 @@
+# Overlay for k8s-infra — tune presets (logs volume, scrape intervals) per cluster.
+
+clusterName: homelab-prod
+
+global:
+  clusterName: homelab-prod

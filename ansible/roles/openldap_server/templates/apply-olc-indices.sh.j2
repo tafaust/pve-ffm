@@ -1,0 +1,40 @@
+#!/bin/bash
+# Idempotent olcDbIndex adds (bm-uni style: objectClass eq, etc.)
+set -euo pipefail
+MDB="{{ openldap_mdb_config_dn }}"
+changed=0
+
+index_has_attr() {
+  local want="$1"
+  local spec attrs part
+  while read -r spec; do
+    attrs="${spec%% *}"
+    IFS=',' read -ra parts <<< "$attrs"
+    for part in "${parts[@]}"; do
+      if [[ "$part" == "$want" ]]; then
+        return 0
+      fi
+    done
+  done < <(
+    ldapsearch -Y EXTERNAL -H ldapi:/// -LLL -b "$MDB" olcDbIndex 2>/dev/null \
+      | sed -n 's/^olcDbIndex: //p'
+  )
+  return 1
+}
+
+{% for idx in openldap_olc_db_indices %}
+{% set attr = idx.split()[0] %}
+if ! index_has_attr "{{ attr }}"; then
+  tmp="$(mktemp)"
+  cat >"$tmp" <<IDXLDIF
+dn: {{ openldap_mdb_config_dn }}
+changetype: modify
+add: olcDbIndex
+olcDbIndex: {{ idx }}
+IDXLDIF
+  ldapmodify -Y EXTERNAL -H ldapi:/// -f "$tmp"
+  rm -f "$tmp"
+  changed=1
+fi
+{% endfor %}
+if [[ "$changed" -eq 1 ]]; then echo CHANGED; fi

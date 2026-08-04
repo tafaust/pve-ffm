@@ -1,0 +1,14 @@
+---
+# Baseline hardening: Debian family (UFW/apt) and SUSE (firewalld/zypper).
+- name: Include Debian family hardening (Ubuntu 24.04 LTS, etc.)
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Include SUSE family hardening (openSUSE Tumbleweed, etc.)
+  ansible.builtin.include_tasks: suse.yml
+  when: ansible_os_family == "Suse"
+
+- name: Unsupported OS for common_hardening
+  ansible.builtin.debug:
+    msg: "common_hardening: no automated tasks for {{ ansible_distribution }} ({{ ansible_os_family }}). Add tasks if needed."
+  when: ansible_os_family not in ["Debian", "Suse"]

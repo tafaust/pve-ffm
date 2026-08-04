@@ -1,0 +1,18 @@
+---
+- name: Include SSSD LDAP client (Debian family)
+  ansible.builtin.include_tasks: debian.yml
+  when:
+    - sssd_ldap_enabled | bool
+    - ansible_os_family == "Debian"
+
+- name: SSSD LDAP skipped
+  ansible.builtin.debug:
+    msg: "sssd_ldap: disabled (sssd_ldap_enabled=false). Set true and ldap_* when directory is ready."
+  when: not sssd_ldap_enabled | bool
+
+- name: SSSD LDAP not implemented for this OS
+  ansible.builtin.debug:
+    msg: "sssd_ldap: no tasks for {{ ansible_os_family }} yet."
+  when:
+    - sssd_ldap_enabled | bool
+    - ansible_os_family != "Debian"

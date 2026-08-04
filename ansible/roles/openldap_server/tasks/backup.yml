@@ -1,0 +1,25 @@
+---
+- name: Ensure OpenLDAP backup directory exists
+  ansible.builtin.file:
+    path: "{{ openldap_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: openldap_backup_enabled | bool
+
+- name: Install slapcat backup script
+  ansible.builtin.template:
+    src: slapcat-backup.sh.j2
+    dest: /usr/local/sbin/openldap-slapcat-backup
+    mode: "0750"
+  when: openldap_backup_enabled | bool
+
+- name: Schedule daily slapcat backup
+  ansible.builtin.cron:
+    name: openldap-slapcat-backup
+    user: root
+    hour: "{{ openldap_backup_hour }}"
+    minute: "{{ openldap_backup_minute }}"
+    job: "/usr/local/sbin/openldap-slapcat-backup"
+  when: openldap_backup_enabled | bool

@@ -1,0 +1,38 @@
+[sssd]
+domains = {{ sssd_domain }}
+config_file_version = 2
+services = nss, pam
+
+[domain/{{ sssd_domain }}]
+id_provider = ldap
+auth_provider = ldap
+chpass_provider = none
+
+ldap_schema = {{ ldap_schema }}
+ldap_uri = {{ ldap_uri }}
+ldap_search_base = {{ ldap_search_base }}
+ldap_user_search_base = {{ ldap_user_search_base }}
+{% endif %}
+{% if ldap_group_search_base | length > 0 %}
+ldap_group_search_base = {{ ldap_group_search_base }}
+{% endif %}
+
+ldap_default_bind_dn = {{ ldap_bind_dn }}
+ldap_default_authtok_type = password
+ldap_default_authtok = {{ ldap_bind_password }}
+
+ldap_id_use_start_tls = {{ 'yes' if ldap_id_use_start_tls | bool else 'no' }}
+ldap_tls_reqcert = {{ ldap_tls_reqcert }}
+ldap_tls_cacert = {{ ldap_tls_cacert }}
+
+enumerate = false
+cache_credentials = true
+
+{% if ldap_access_filter | length > 0 %}
+access_provider = ldap
+ldap_access_filter = {{ ldap_access_filter }}
+{% endif %}
+
+{% if ldap_ssh_public_key_attr | length > 0 %}
+ldap_user_ssh_public_key = {{ ldap_ssh_public_key_attr }}
+{% endif %}

@@ -1,0 +1,50 @@
+# Managed by Ansible (infisical_server) — upstream docker-compose.prod.yml (simplified)
+services:
+  backend:
+    container_name: infisical-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    image: "{{ infisical_image }}"
+    env_file: .env
+    ports:
+      - "{{ infisical_listen_port }}:8080"
+    environment:
+      NODE_ENV: production
+    networks:
+      - infisical
+
+  redis:
+    image: "{{ infisical_redis_image }}"
+    container_name: infisical-redis
+    env_file: .env
+    restart: unless-stopped
+    networks:
+      - infisical
+    volumes:
+      - redis_data:/data
+
+  db:
+    container_name: infisical-db
+    image: "{{ infisical_postgres_image }}"
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - infisical
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  pg_data:
+  redis_data:
+
+networks:
+  infisical:

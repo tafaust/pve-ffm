@@ -1,0 +1,98 @@
+---
+- name: Require Debian family for k3s role
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+    fail_msg: "k3s_node role supports Debian family (Ubuntu Server) only for now."
+
+- name: Assert k3s_node_role
+  ansible.builtin.assert:
+    that:
+      - k3s_node_role in ['server', 'agent']
+    fail_msg: "k3s_node_role must be server or agent (got {{ k3s_node_role }})"
+
+- name: Assert agent variables
+  ansible.builtin.assert:
+    that:
+      - k3s_url | length > 0
+      - k3s_registration_token | length > 0
+    fail_msg: "Agent nodes need k3s_url and k3s_registration_token (host_vars / Vault), or export K3S_JOIN_TOKEN for this run."
+  when: k3s_node_role == 'agent'
+
+- name: Install k3s prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - open-iscsi
+    state: present
+
+- name: Stat k3s binary
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: _k3s_bin
+
+- name: Query installed k3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: _k3s_ver
+  changed_when: false
+  failed_when: false
+  when: _k3s_bin.stat.exists
+
+- name: Build server INSTALL_K3S_EXEC
+  ansible.builtin.set_fact:
+    _k3s_server_exec: >-
+      {{ k3s_server_install_flags | trim }}
+      --node-ip={{ k3s_bind_address }}
+      --advertise-address={{ k3s_advertise_address }}
+      {% for san in k3s_tls_san %} --tls-san={{ san }}{% endfor %}
+  when: k3s_node_role == 'server'
+
+- name: Install or upgrade k3s server
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -sfL https://get.k3s.io | sh -s - server
+  args:
+    executable: /bin/bash
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: "{{ _k3s_server_exec | trim | regex_replace('\\s+', ' ') }}"
+  when:
+    - k3s_node_role == 'server'
+    - (not _k3s_bin.stat.exists) or (k3s_version not in (_k3s_ver.stdout | default('')))
+
+- name: Build agent INSTALL_K3S_EXEC
+  ansible.builtin.set_fact:
+    _k3s_agent_exec: "{{ (k3s_agent_install_flags ~ ' --node-ip=' ~ k3s_bind_address) | trim }}"
+  when: k3s_node_role == 'agent'
+
+- name: Install or upgrade k3s agent
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -sfL https://get.k3s.io | sh -
+  args:
+    executable: /bin/bash
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: "{{ _k3s_agent_exec | trim | regex_replace('\\s+', ' ') }}"
+    K3S_URL: "{{ k3s_url }}"
+    K3S_TOKEN: "{{ k3s_registration_token }}"
+  when:
+    - k3s_node_role == 'agent'
+    - (not _k3s_bin.stat.exists) or (k3s_version not in (_k3s_ver.stdout | default('')))
+
+- name: Enable and start k3s (server)
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+  when: k3s_node_role == 'server'
+
+- name: Enable and start k3s-agent
+  ansible.builtin.systemd:
+    name: k3s-agent
+    enabled: true
+    state: started
+  when: k3s_node_role == 'agent'

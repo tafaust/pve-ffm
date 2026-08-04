@@ -1,0 +1,145 @@
+---
+- name: Require LDAP admin password
+  ansible.builtin.assert:
+    that:
+      - ldap_admin_bind_password | length > 0
+    fail_msg: "Set ldap_admin_bind_password (Vault / -e @secrets.yml). Never commit plaintext."
+
+- name: Check whether slapd is already installed
+  ansible.builtin.command: dpkg-query -W -f='${Status}' slapd
+  register: _openldap_slapd_dpkg
+  changed_when: false
+  failed_when: false
+
+- name: Preseed slapd debconf (domain, org, admin password)
+  ansible.builtin.debconf:
+    name: slapd
+    question: "{{ item.question }}"
+    value: "{{ item.value }}"
+    vtype: "{{ item.vtype }}"
+  loop:
+    - question: slapd/domain
+      value: "{{ ldap_server_domain }}"
+      vtype: string
+    - question: slapd/organization
+      value: "{{ ldap_organization }}"
+      vtype: string
+    - question: slapd/password1
+      value: "{{ ldap_admin_bind_password }}"
+      vtype: password
+    - question: slapd/password2
+      value: "{{ ldap_admin_bind_password }}"
+      vtype: password
+  no_log: true
+  when: _openldap_slapd_dpkg.stdout != "install ok installed"
+
+- name: Install slapd and ldap-utils
+  ansible.builtin.apt:
+    name:
+      - slapd
+      - ldap-utils
+    state: present
+
+- name: Enable and start slapd
+  ansible.builtin.service:
+    name: slapd
+    state: started
+    enabled: true
+
+- name: Wait for LDAP port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 389
+    timeout: 120
+
+- name: Remove legacy persistent admin password file
+  ansible.builtin.file:
+    path: /root/.ansible-openldap-admin
+    state: absent
+  no_log: true
+
+- name: Configure slapd TLS
+  ansible.builtin.include_tasks: tls.yml
+  when: openldap_tls_enabled | bool
+
+- name: LDAP data and OLC (ephemeral admin credentials)
+  block:
+    - name: Stage ephemeral admin bind password
+      ansible.builtin.copy:
+        dest: "/tmp/.ansible-openldap-admin-{{ ansible_facts.machine_id }}"
+        owner: root
+        group: root
+        mode: "0600"
+        content: "{{ ldap_admin_bind_password }}"
+      no_log: true
+      register: _openldap_admin_pw_file
+
+    - name: Set admin password file fact
+      ansible.builtin.set_fact:
+        openldap_admin_password_file: "{{ _openldap_admin_pw_file.dest }}"
+      no_log: true
+
+    - name: Deploy base OU LDIF
+      ansible.builtin.template:
+        src: 01-ous.ldif.j2
+        dest: /tmp/ansible-openldap-01-ous.ldif
+        mode: "0600"
+
+    - name: Apply base OU LDIF
+      ansible.builtin.command:
+        argv:
+          - ldapadd
+          - -x
+          - -H
+          - ldap://127.0.0.1
+          - -D
+          - "{{ ldap_admin_bind_dn }}"
+          - -y
+          - "{{ openldap_admin_password_file }}"
+          - -f
+          - /tmp/ansible-openldap-01-ous.ldif
+      register: _ldapadd_ous
+      changed_when: _ldapadd_ous.rc == 0
+      failed_when: _ldapadd_ous.rc not in [0, 68]
+      no_log: true
+
+    - name: Apply dynamic cn=config tuning (OLC)
+      ansible.builtin.include_tasks: olc.yml
+
+    - name: Deploy demo user LDIF
+      ansible.builtin.template:
+        src: 02-demo-user.ldif.j2
+        dest: /tmp/ansible-openldap-02-demo.ldif
+        mode: "0600"
+      when: openldap_create_demo_user | bool
+
+    - name: Apply demo user LDIF
+      ansible.builtin.command:
+        argv:
+          - ldapadd
+          - -x
+          - -H
+          - ldap://127.0.0.1
+          - -D
+          - "{{ ldap_admin_bind_dn }}"
+          - -y
+          - "{{ openldap_admin_password_file }}"
+          - -f
+          - /tmp/ansible-openldap-02-demo.ldif
+      register: _ldapadd_demo
+      changed_when: _ldapadd_demo.rc == 0
+      failed_when: _ldapadd_demo.rc not in [0, 68]
+      when: openldap_create_demo_user | bool
+      no_log: true
+
+  always:
+    - name: Remove ephemeral admin bind password
+      ansible.builtin.file:
+        path: "{{ openldap_admin_password_file }}"
+        state: absent
+      when: openldap_admin_password_file is defined
+      no_log: true
+
+- name: Configure OpenLDAP backups
+  ansible.builtin.include_tasks: backup.yml
+  when: openldap_backup_enabled | bool

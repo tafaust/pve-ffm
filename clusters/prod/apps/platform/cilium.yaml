@@ -1,0 +1,31 @@
+# Cilium CNI — disable k3s flannel before install; pin chart version after smoke test.
+# Helm repo: https://helm.cilium.io/ chart: cilium
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
+    gitops.scaffold/chart-pin: "helm search repo cilium/cilium --versions | head"
+spec:
+  project: platform
+  source:
+    repoURL: https://helm.cilium.io/
+    chart: cilium
+    targetRevision: 1.19.4
+    helm:
+      releaseName: cilium
+      values: |
+        kubeProxyReplacement: false
+        operator:
+          replicas: 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

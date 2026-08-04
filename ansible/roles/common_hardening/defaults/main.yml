@@ -1,0 +1,43 @@
+---
+# Ubuntu 24.04 LTS (Debian) + openSUSE Tumbleweed (Suse). Firewall: UFW vs firewalld; same vars.
+common_hardening_manage_sshd: true
+# Host firewall (UFW on Debian, firewalld on SUSE).
+common_hardening_manage_ufw: true
+common_hardening_manage_unattended: true
+# If true, require SSH pubkey for ansible_user before apply (lockout risk otherwise).
+common_hardening_disable_password_ssh: true
+# Extra CIDRs that may SSH to this host (e.g. VPN pool) in addition to homelab_internal_cidr.
+homelab_ssh_allow_extra_cidrs: []
+# Optional extra users allowed SSH (default: current login user only).
+homelab_sshd_allow_users: "{{ [ansible_user] }}"
+
+# Firewall: allow all traffic from homelab_internal_cidr (k3s / internal mesh). Disable on dedicated VMs.
+common_hardening_ufw_allow_lab_cidr_all: true
+# When allow_lab_cidr_all is false, allow these TCP ports from lab + homelab_ssh_allow_extra_cidrs.
+common_hardening_ufw_allowed_tcp_ports: [22]
+# Remove stale UFW allow rules for these ports (e.g. retire plain LDAP 389).
+common_hardening_ufw_revoke_tcp_ports: []
+homelab_ufw_revoke_source_cidrs: []
+
+# Run package upgrade during playbook (apt safe / zypper latest).
+common_hardening_apt_upgrade: true
+common_hardening_manage_fail2ban: true
+common_hardening_manage_auditd: true
+common_hardening_manage_sysctl: true
+common_hardening_manage_shm: true
+common_hardening_verify_apparmor: true
+
+homelab_ssh_port: 22
+common_hardening_sshd_max_auth_tries: 3
+common_hardening_sshd_max_sessions: 2
+common_hardening_sshd_client_alive_interval: 300
+common_hardening_sshd_client_alive_count_max: 2
+
+common_hardening_fail2ban_maxretry: 3
+common_hardening_fail2ban_bantime: 3600
+common_hardening_fail2ban_findtime: 600
+
+# CIS-inspired extras (not full USG profile).
+common_hardening_cis_lite: true
+common_hardening_issue_banner: |
+  Authorized access only. Activity is monitored and logged.

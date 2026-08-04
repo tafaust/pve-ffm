@@ -1,0 +1,9 @@
+{% for rule in _openldap_olc_access_list.stdout_lines %}
+{% if 'to * by * read' in rule %}
+dn: {{ openldap_mdb_config_dn }}
+changetype: modify
+delete: olcAccess
+olcAccess: {{ rule }}
+
+{% endif %}
+{% endfor %}

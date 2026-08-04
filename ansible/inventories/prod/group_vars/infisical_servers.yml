@@ -1,0 +1,10 @@
+---
+# Infisical (Docker Compose: Postgres + Redis + backend). Pin image in role defaults.
+infisical_site_url: "http://192.168.20.8"
+infisical_listen_port: 80
+
+# Dedicated secrets VM: port-specific UFW (lab + VPN); no wide lab allow-all.
+common_hardening_ufw_allow_lab_cidr_all: false
+common_hardening_ufw_allowed_tcp_ports:
+  - 22
+  - "{{ infisical_listen_port }}"

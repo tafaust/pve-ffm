@@ -1,0 +1,5 @@
+---
+ansible_host: ldap-01   # not 192.168.20.7 — picks User/IdentityFile from ~/.ssh/config
+ansible_user: thomas    # if config User thomas
+ansible_python_interpreter: /usr/bin/python3.12
+sssd_ldap_enabled: false

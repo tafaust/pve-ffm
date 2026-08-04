@@ -1,0 +1,10 @@
+# Non-secret client parameters — copy to clients/<name>/ and expand per tool.
+# Argo CD (see clusters/prod/argocd/root-app.yaml)
+# gitops_repo_url: "https://github.com/YOUR_ORG/pve-ffm.git"
+# gitops_target_revision: "main"
+
+# Lab network (Ansible group_vars often override these)
+# lab_internal_cidr: "192.168.20.0/24"
+
+# Public DNS apex (for docs / cert-manager DNS-01 planning only)
+# public_zone: "example.com"

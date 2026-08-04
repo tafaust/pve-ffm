@@ -1,0 +1,7 @@
+---
+- name: k3s node install / pin (run only on k8s nodes)
+  hosts: lab_prod
+  become: true
+  tags: [k3s, kubernetes]
+  roles:
+    - role: k3s_node

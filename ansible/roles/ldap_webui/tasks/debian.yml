@@ -1,0 +1,107 @@
+---
+- name: Stat legacy Docker Compose file
+  ansible.builtin.stat:
+    path: "{{ ldap_webui_legacy_compose_dir }}/docker-compose.yml"
+  register: _ldap_webui_legacy_compose
+
+- name: Stop legacy LDAP Web UI Docker stack
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ ldap_webui_legacy_compose_dir }}/docker-compose.yml"
+      - down
+      - --remove-orphans
+    chdir: "{{ ldap_webui_legacy_compose_dir }}"
+  register: _ldap_webui_legacy_down
+  changed_when: _ldap_webui_legacy_down.rc == 0
+  failed_when: false
+  when: _ldap_webui_legacy_compose.stat.exists
+
+- name: Remove legacy Docker Compose directory
+  ansible.builtin.file:
+    path: "{{ ldap_webui_legacy_compose_dir }}"
+    state: absent
+  when: _ldap_webui_legacy_compose.stat.exists
+
+- name: Install phpLDAPadmin and Apache
+  ansible.builtin.apt:
+    name:
+      - phpldapadmin
+      - apache2
+      - libapache2-mod-php
+    state: present
+    update_cache: true
+
+- name: Deploy phpLDAPadmin config
+  ansible.builtin.template:
+    src: config.php.j2
+    dest: /etc/phpldapadmin/config.php
+    owner: root
+    group: www-data
+    mode: "0640"
+  notify: Reload Apache
+
+- name: Ensure Apache listens on LDAP Web UI port
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/ports.conf
+    regexp: '^Listen {{ ldap_webui_listen_port }}$'
+    line: 'Listen {{ ldap_webui_listen_port }}'
+    insertafter: EOF
+  notify: Reload Apache
+
+- name: Deploy Apache vhost for LDAP Web UI
+  ansible.builtin.template:
+    src: apache-ldap-webui.conf.j2
+    dest: /etc/apache2/sites-available/ldap-webui.conf
+    mode: "0644"
+  notify: Reload Apache
+
+- name: Enable LDAP Web UI Apache site
+  ansible.builtin.command:
+    argv:
+      - a2ensite
+      - ldap-webui.conf
+  register: _ldap_webui_a2ensite
+  changed_when: "'Enabling site' in _ldap_webui_a2ensite.stdout"
+  notify: Reload Apache
+
+- name: Disable stock phpLDAPadmin Apache conf (port 80 alias)
+  ansible.builtin.command:
+    argv:
+      - a2disconf
+      - phpldapadmin
+  register: _ldap_webui_a2disconf
+  changed_when: "'Conf phpldapadmin disabled' in _ldap_webui_a2disconf.stdout"
+  failed_when: false
+  notify: Reload Apache
+
+- name: Enable and start Apache
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: true
+
+- name: Apply Apache configuration handlers before port check
+  ansible.builtin.meta: flush_handlers
+
+- name: Validate Apache configuration
+  ansible.builtin.command:
+    argv:
+      - apache2ctl
+      - configtest
+  register: _ldap_webui_apache_configtest
+  changed_when: false
+
+- name: Reload Apache to apply LDAP Web UI configuration
+  ansible.builtin.service:
+    name: apache2
+    state: reloaded
+  when: _ldap_webui_apache_configtest.rc == 0
+
+- name: Wait for LDAP Web UI HTTP port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ ldap_webui_listen_port }}"
+    timeout: 120

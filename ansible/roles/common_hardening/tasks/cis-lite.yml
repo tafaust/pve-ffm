@@ -1,0 +1,17 @@
+---
+- name: Install legal login banner
+  ansible.builtin.template:
+    src: issue.net.j2
+    dest: /etc/issue.net
+    mode: "0644"
+  when: common_hardening_cis_lite | bool
+
+- name: Install auditd homelab rules
+  ansible.builtin.template:
+    src: audit-homelab.rules.j2
+    dest: /etc/audit/rules.d/99-homelab-hardening.rules
+    mode: "0600"
+  notify: Reload audit rules
+  when:
+    - common_hardening_cis_lite | bool
+    - common_hardening_manage_auditd | bool

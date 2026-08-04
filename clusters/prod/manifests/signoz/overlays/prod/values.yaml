@@ -1,0 +1,14 @@
+# Prod / lab overlay — patch storage, sizing, and cluster identity here.
+# Argo CD merges this file after base/values.yaml (later wins).
+
+global:
+  clusterName: homelab-prod
+  # Uncomment and set your cluster default or named StorageClass (e.g. local-path, longhorn).
+  # storageClass: local-path
+
+clusterName: homelab-prod
+
+clickhouse:
+  persistence:
+    # Grow if traces/logs cardinality is high; backup implications — see docs/runbooks/signoz.md
+    size: 40Gi

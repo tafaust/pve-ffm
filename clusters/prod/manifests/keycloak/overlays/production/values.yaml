@@ -1,0 +1,14 @@
+# Minimal scaffold — add external DB, hostname, and secrets for real deployments.
+# See: https://github.com/codecentric/helm-charts/tree/master/charts/keycloakx
+
+replicas: 1
+
+proxy:
+  enabled: true
+  mode: xforwarded
+
+http:
+  relativePath: /
+
+# Production: configure database (chart supports external Postgres, etc.)
+# database: ...

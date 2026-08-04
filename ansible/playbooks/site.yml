@@ -1,0 +1,5 @@
+---
+# Site baseline: import order = hardening → auth client → k3s (override with --tags / --limit).
+- import_playbook: hardening.yml
+- import_playbook: sssd-ldap.yml
+- import_playbook: k3s-node.yml

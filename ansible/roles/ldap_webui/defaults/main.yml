@@ -1,0 +1,15 @@
+---
+ldap_webui_enabled: true
+ldap_webui_listen_port: 8080
+ldap_webui_server_label: "{{ ldap_server_domain }}"
+
+# Same DIT as openldap_server (debconf domain → dc=…).
+ldap_base_dn: "{{ 'dc=' + ldap_server_domain.replace('.', ',dc=') }}"
+ldap_admin_bind_dn: "cn=admin,{{ ldap_base_dn }}"
+
+# Co-located with slapd: plain loopback LDAP (UFW blocks remote :389; slapd still has :636 for clients).
+# ldaps:// from mod_php often fails TLS verify (-1 "Can't contact") before bind — not a password issue.
+ldap_webui_ldap_uri: ldap://127.0.0.1:389
+# 0 = no STARTTLS; port 0 → single-arg ldap_connect(uri) on PHP 8.3.
+ldap_webui_ldap_starttls: 0
+ldap_webui_legacy_compose_dir: /opt/ldap-webui

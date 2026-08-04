@@ -1,0 +1,36 @@
+# SigNoz k8s-infra — DaemonSet / collectors for kubelet stats, host metrics, cluster metrics, pod logs.
+# Chart: signoz/k8s-infra from https://charts.signoz.io
+# Docs: https://signoz.io/docs/opentelemetry-collection-agents/k8s/k8s-infra/
+# Sync after core `signoz` so the OTLP Service exists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz-k8s-infra
+  namespace: argocd
+  annotations:
+    homelab.scaffold/chart-pin: "helm search repo signoz/k8s-infra --versions | head"
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: homelab
+  sources:
+    - repoURL: https://charts.signoz.io
+      chart: k8s-infra
+      targetRevision: "0.16.0"
+      helm:
+        releaseName: signoz-k8s-infra
+        valueFiles:
+          - $values/k8s-infra/base/values.yaml
+          - $values/k8s-infra/overlays/prod/values.yaml
+    - repoURL: https://github.com/REPLACE_ME/pve-ffm.git
+      targetRevision: main
+      ref: values
+      path: clusters/prod/manifests/signoz
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

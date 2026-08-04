@@ -1,0 +1,11 @@
+#!/bin/bash
+# Managed by Ansible (openldap_server)
+set -euo pipefail
+BACKUP_DIR="{{ openldap_backup_dir }}"
+RETENTION_DAYS="{{ openldap_backup_retention_days }}"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+OUT="${BACKUP_DIR}/slapcat-${STAMP}.ldif"
+umask 077
+slapcat -n 0 -l "${OUT}"
+gzip -9 "${OUT}"
+find "${BACKUP_DIR}" -name 'slapcat-*.ldif.gz' -mtime +"${RETENTION_DAYS}" -delete

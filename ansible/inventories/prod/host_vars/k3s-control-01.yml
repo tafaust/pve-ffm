@@ -1,0 +1,8 @@
+---
+ansible_user: thomas
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519_thomas_github
+ansible_python_interpreter: /usr/bin/python3.12
+k3s_node_role: server
+k3s_tls_san:
+  - k3s-control-01
+  - 192.168.20.10
