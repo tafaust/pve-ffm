@@ -1,0 +1,91 @@
+---
+- name: Resolve local-path mount source
+  ansible.builtin.set_fact:
+    _k3s_local_path_mount_src: >-
+      {{ k3s_local_path_mount_src if (k3s_local_path_mount_src | length > 0)
+         else '/dev/' ~ k3s_local_path_vg ~ '/' ~ k3s_local_path_lv }}
+  tags: [k3s, local-path-storage]
+
+- name: Install LVM tools for local-path data volume
+  ansible.builtin.apt:
+    name: lvm2
+    state: present
+  tags: [k3s, local-path-storage]
+
+- name: Extend local-path LV to use free VG space
+  ansible.builtin.command:
+    argv:
+      - lvextend
+      - -l
+      - +100%FREE
+      - -r
+      - "/dev/{{ k3s_local_path_vg }}/{{ k3s_local_path_lv }}"
+  register: _k3s_lvextend
+  changed_when: "'Size of logical volume' in (_k3s_lvextend.stdout | default(''))"
+  failed_when: >-
+    _k3s_lvextend.rc != 0
+    and 'matches existing size' not in (_k3s_lvextend.stderr | default(''))
+    and 'matches existing size' not in (_k3s_lvextend.stdout | default(''))
+  when: k3s_local_path_lvm_extend | bool
+  tags: [k3s, local-path-storage]
+
+- name: Ensure local-path mount point exists
+  ansible.builtin.file:
+    path: "{{ k3s_local_path_mount_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [k3s, local-path-storage]
+
+- name: Add local-path mount to fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '\s+{{ k3s_local_path_mount_path | regex_escape }}\s+'
+    line: >-
+      {{ _k3s_local_path_mount_src }}
+      {{ k3s_local_path_mount_path }}
+      {{ k3s_local_path_mount_fstype }}
+      {{ k3s_local_path_mount_opts }}
+      0 2
+    state: present
+    create: true
+  register: _k3s_local_path_fstab
+  tags: [k3s, local-path-storage]
+
+- name: Check if local-path volume is mounted
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - -n
+      - "{{ k3s_local_path_mount_path }}"
+  register: _k3s_local_path_findmnt
+  changed_when: false
+  failed_when: false
+  tags: [k3s, local-path-storage]
+
+- name: Mount k3s local-path data volume
+  ansible.builtin.command:
+    argv:
+      - mount
+      - "{{ k3s_local_path_mount_path }}"
+  register: _k3s_local_path_mount
+  changed_when: true
+  when: _k3s_local_path_findmnt.rc != 0
+  tags: [k3s, local-path-storage]
+
+- name: Stat k3s-agent unit
+  ansible.builtin.stat:
+    path: /etc/systemd/system/k3s-agent.service
+  register: _k3s_agent_unit
+  when: _k3s_local_path_mount is changed or _k3s_local_path_fstab is changed
+  tags: [k3s, local-path-storage]
+
+- name: Restart k3s agent after local-path mount change
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  when:
+    - _k3s_agent_unit.stat.exists | default(false)
+    - _k3s_local_path_mount is changed or _k3s_local_path_fstab is changed
+  tags: [k3s, local-path-storage]

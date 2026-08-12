@@ -14,8 +14,18 @@ k3s_server_install_flags: >-
   --write-kubeconfig-mode 600
   --disable=traefik
   --disable=servicelb
-k3s_agent_install_flags: "--flannel-backend=none"
+# Agent has no --flannel-backend (server-only). CNI comes from cluster (Cilium).
+k3s_agent_install_flags: ""
 # Agent only: API URL of first server (https://IP:6443).
 k3s_url: ""
 # Agent only: node token from server (`sudo cat /var/lib/rancher/k3s/server/node-token`).
 k3s_registration_token: ""
+# Optional dedicated volume for k3s local-path PVCs (set per worker host_vars).
+k3s_local_path_mount_enabled: false
+k3s_local_path_mount_path: /var/lib/rancher/k3s/storage
+k3s_local_path_mount_src: ""
+k3s_local_path_mount_fstype: ext4
+k3s_local_path_mount_opts: defaults,noatime
+k3s_local_path_lvm_extend: false
+k3s_local_path_vg: ""
+k3s_local_path_lv: ""

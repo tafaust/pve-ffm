@@ -19,6 +19,14 @@
     fail_msg: "Agent nodes need k3s_url and k3s_registration_token (host_vars / Vault), or export K3S_JOIN_TOKEN for this run."
   when: k3s_node_role == 'agent'
 
+- name: Prepare local-path data volume
+  ansible.builtin.include_tasks: local-path-storage.yml
+  when:
+    - k3s_local_path_mount_enabled | bool
+    - k3s_local_path_vg | length > 0
+    - k3s_local_path_lv | length > 0
+  tags: [k3s, local-path-storage]
+
 - name: Install k3s prerequisites
   ansible.builtin.apt:
     name:
