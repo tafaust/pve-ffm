@@ -104,6 +104,7 @@ This runs hardening → SSSD (skipped until enabled) → k3s on `lab_prod`. **Ag
 | `common_hardening_ufw_allowed_tcp_ports` | `group_vars/ldap_servers.yml` | e.g. `[22, 389, 636]` when lab-wide allow is off |
 | `k3s_version` | `group_vars/lab_prod.yml` | Pinned k3s (e.g. `v1.31.5+k3s1`) |
 | `k3s_node_role` | `host_vars` | `server` or `agent` |
+| `k3s_node_labels` | worker `host_vars` | e.g. `homelab.tafaust.org/role: worker` |
 | `k3s_url` / `k3s_registration_token` | worker `host_vars` or env | Agent join |
 | `ldap_admin_bind_password` | Vault / `-e @…` | **Required** for `openldap-server.yml` |
 | `ldap_server_domain` | [group_vars/ldap_servers.yml](inventories/prod/group_vars/ldap_servers.yml) | DNS domain for debconf → `dc=…` suffix (here **`tafaust.org`**) |

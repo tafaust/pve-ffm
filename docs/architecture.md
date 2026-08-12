@@ -48,5 +48,7 @@ flowchart LR
 - Red Hat–family SSSD packages (`oddjob-mkhomedir`) if you add RHEL-based guests.
 - Operator kubeconfig: fetch to `~/.kube/configs/pve-ffm.yaml` ([runbook](runbooks/kubeconfig.md)); never commit credentials.
 - Platform apps via Argo CD only ([runbook](runbooks/argocd-bootstrap.md)); Cilium/Longhorn sync waves `-30`/`-20`.
+- Workloads on workers only ([worker-scheduling.md](runbooks/worker-scheduling.md)); control-plane disk/Failed pods ([cluster-health.md](runbooks/cluster-health.md)).
+- Homelab userspace: Kubero on k3s, not Dokploy ([homelab-apps.md](runbooks/homelab-apps.md)).
 - Staging cluster (`clusters/staging/`) mirroring prod with smaller node counts.
 - ApplicationSet for multi-env if you outgrow static `Application` files.

@@ -17,6 +17,14 @@ spec:
       releaseName: cert-manager
       values: |
         installCRDs: true
+        nodeSelector:
+          homelab.tafaust.org/role: worker
+        webhook:
+          nodeSelector:
+            homelab.tafaust.org/role: worker
+        cainjector:
+          nodeSelector:
+            homelab.tafaust.org/role: worker
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

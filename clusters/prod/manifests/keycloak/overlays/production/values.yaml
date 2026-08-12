@@ -3,6 +3,9 @@
 
 replicas: 1
 
+nodeSelector:
+  homelab.tafaust.org/role: worker
+
 proxy:
   enabled: true
   mode: xforwarded

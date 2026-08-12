@@ -14,12 +14,15 @@ k3s_server_install_flags: >-
   --write-kubeconfig-mode 600
   --disable=traefik
   --disable=servicelb
+  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule
 # Agent has no --flannel-backend (server-only). CNI comes from cluster (Cilium).
 k3s_agent_install_flags: ""
 # Agent only: API URL of first server (https://IP:6443).
 k3s_url: ""
 # Agent only: node token from server (`sudo cat /var/lib/rancher/k3s/server/node-token`).
 k3s_registration_token: ""
+# Optional node labels at join time (agents: set homelab.tafaust.org/role=worker in host_vars).
+k3s_node_labels: {}
 # Optional dedicated volume for k3s local-path PVCs (set per worker host_vars).
 k3s_local_path_mount_enabled: false
 k3s_local_path_mount_path: /var/lib/rancher/k3s/storage

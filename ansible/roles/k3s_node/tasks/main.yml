@@ -54,7 +54,16 @@
       --node-ip={{ k3s_bind_address }}
       --advertise-address={{ k3s_advertise_address }}
       {% for san in k3s_tls_san %} --tls-san={{ san }}{% endfor %}
+      {% for key, value in k3s_node_labels.items() %} --node-label {{ key }}={{ value }}{% endfor %}
   when: k3s_node_role == 'server'
+
+- name: Build agent node label flags
+  ansible.builtin.set_fact:
+    _k3s_node_label_flags: >-
+      {% for key, value in k3s_node_labels.items() %} --node-label {{ key }}={{ value }}{% endfor %}
+  when:
+    - k3s_node_role == 'agent'
+    - k3s_node_labels | length > 0
 
 - name: Install or upgrade k3s server
   ansible.builtin.shell: |
@@ -72,7 +81,7 @@
 
 - name: Build agent INSTALL_K3S_EXEC
   ansible.builtin.set_fact:
-    _k3s_agent_exec: "{{ (k3s_agent_install_flags ~ ' --node-ip=' ~ k3s_bind_address) | trim }}"
+    _k3s_agent_exec: "{{ (k3s_agent_install_flags ~ ' --node-ip=' ~ k3s_bind_address ~ (_k3s_node_label_flags | default(''))) | trim }}"
   when: k3s_node_role == 'agent'
 
 - name: Install or upgrade k3s agent
@@ -104,3 +113,24 @@
     enabled: true
     state: started
   when: k3s_node_role == 'agent'
+
+- name: Ensure control-plane NoSchedule taint
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl taint nodes {{ inventory_hostname }}
+    node-role.kubernetes.io/control-plane=true:NoSchedule --overwrite
+  register: _k3s_control_plane_taint
+  changed_when: >-
+    'modified' in (_k3s_control_plane_taint.stdout | default(''))
+    or 'tainted' in (_k3s_control_plane_taint.stdout | default(''))
+  failed_when: false
+  when: k3s_node_role == 'server'
+
+- name: Ensure k3s node labels
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl label node {{ inventory_hostname }}
+    {{ item.key }}={{ item.value }} --overwrite
+  loop: "{{ k3s_node_labels | dict2items }}"
+  delegate_to: k3s-control-01
+  when:
+    - k3s_node_labels | length > 0
+    - k3s_node_role == 'agent'

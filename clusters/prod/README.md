@@ -32,6 +32,8 @@ Placeholders use **ingress-nginx** with **cert-manager**. **Traefik** is a fine 
 
 Pin `targetRevision` after smoke tests; enable Renovate ([renovate.json](../../renovate.json), [docs/renovate.md](../../docs/renovate.md)).
 
+Workloads (not CNI/storage DaemonSets) use `nodeSelector: homelab.tafaust.org/role: worker` — [worker-scheduling.md](../../docs/runbooks/worker-scheduling.md).
+
 ## Kustomize checks
 
 ```bash

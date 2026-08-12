@@ -87,6 +87,6 @@ kubectl -n longhorn-system get pods
 
 ## Notes
 
-- Argo CD itself is **not** self-managed in this repo (upstream install manifest).
+- Argo CD itself is **not** self-managed in this repo (upstream install manifest). Pin it to workers after install — [worker-scheduling.md](worker-scheduling.md).
 - Git-sourced apps fail until `main` is pushed to the configured `repoURL`.
 - Default StorageClass: Longhorn chart sets `longhorn` default; demote k3s `local-path` once (see step 2).

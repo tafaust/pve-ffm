@@ -20,6 +20,8 @@ spec:
         kubeProxyReplacement: false
         operator:
           replicas: 1
+          nodeSelector:
+            homelab.tafaust.org/role: worker
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system

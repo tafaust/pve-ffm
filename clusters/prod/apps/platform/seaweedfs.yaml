@@ -19,14 +19,22 @@ spec:
       values: |
         global:
           storageClass: longhorn
-        s3:
-          enabled: true
         master:
           replicas: 1
+          nodeSelector:
+            homelab.tafaust.org/role: worker
         volume:
           replicas: 1
+          nodeSelector:
+            homelab.tafaust.org/role: worker
         filer:
           replicas: 1
+          nodeSelector:
+            homelab.tafaust.org/role: worker
+        s3:
+          enabled: true
+          nodeSelector:
+            homelab.tafaust.org/role: worker
   destination:
     server: https://kubernetes.default.svc
     namespace: seaweedfs

@@ -21,6 +21,9 @@ spec:
           defaultReplicaCount: "2"
         persistence:
           defaultClass: true
+        longhornUI:
+          nodeSelector:
+            homelab.tafaust.org/role: worker
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn-system

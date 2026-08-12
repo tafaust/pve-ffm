@@ -2,6 +2,8 @@
 
 This directory is the **Kustomize root** synced by [root-app.yaml](../argocd/root-app.yaml). Each file is one Argo `Application` (Helm chart or in-repo Kustomize path).
 
+Deployments (not DaemonSets) use `nodeSelector: homelab.tafaust.org/role: worker`. See [worker-scheduling.md](../../../docs/runbooks/worker-scheduling.md).
+
 ## ApplicationSet (optional)
 
 When you add many clusters or tenants, consider an `ApplicationSet` generator (Git directories, cluster matrix, …). Keep static YAML while the fleet is small — see [ADR 0004](../../../docs/adr/0004-argocd-app-of-apps.md).

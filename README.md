@@ -43,7 +43,7 @@ Ansible targets are usually reached over **site-to-site WireGuard** (e.g. FRITZ!
 
 - [docs/runbooks/mailcow-reverse-proxy.md](docs/runbooks/mailcow-reverse-proxy.md) — Mailcow vs **ingress-nginx** / Traefik
 - [docs/adr/](docs/adr/) (e.g. [0001 SigNoz backend](docs/adr/0001-signoz-as-observability-backend.md))
-- [docs/runbooks/](docs/runbooks/)
+- [docs/runbooks/](docs/runbooks/) — including [worker-scheduling.md](docs/runbooks/worker-scheduling.md), [cluster-health.md](docs/runbooks/cluster-health.md), [homelab-apps.md](docs/runbooks/homelab-apps.md)
 - [docs/runbooks/signoz.md](docs/runbooks/signoz.md) — observability: UI over VPN, OTLP endpoints, retention, backups; **single-node vs HA**
 - [docs/cloud-init-snippet.example.yml](docs/cloud-init-snippet.example.yml)
 - [docs/security-advisories.md](docs/security-advisories.md)

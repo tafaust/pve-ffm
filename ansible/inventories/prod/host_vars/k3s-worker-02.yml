@@ -3,6 +3,8 @@ ansible_user: thomas
 ansible_ssh_private_key_file: ~/.ssh/id_ed25519_thomas_github
 ansible_python_interpreter: /usr/bin/python3.12
 k3s_node_role: agent
+k3s_node_labels:
+  homelab.tafaust.org/role: worker
 k3s_url: "https://192.168.20.10:6443"
 # 250G HDD (scsi1): k3s-data-vg/local-path-lv (ubuntu-vg is root on sda for this host).
 k3s_local_path_mount_enabled: true

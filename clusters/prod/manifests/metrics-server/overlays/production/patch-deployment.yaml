@@ -6,6 +6,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeSelector:
+        homelab.tafaust.org/role: worker
       containers:
         - name: metrics-server
           args:
