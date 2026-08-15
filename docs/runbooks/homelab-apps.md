@@ -13,6 +13,23 @@ Docs: https://www.kubero.dev/
 
 Keep Argo CD as source of truth for **platform**. Use Kubero for **userspace** apps you would have clicked together in Dokploy.
 
+Helm does **not** create `kubero-secrets`. Create once (not in Git):
+
+```bash
+export KUBECONFIG=~/.kube/configs/pve-ffm.yaml
+kubectl -n kubero create secret generic kubero-secrets \
+  --from-literal=KUBERO_WEBHOOK_SECRET="$(openssl rand -hex 16)" \
+  --from-literal=KUBERO_SESSION_KEY="$(openssl rand -hex 16)" \
+  --from-literal=KUBERO_ADMIN_USERNAME=admin \
+  --from-literal=KUBERO_ADMIN_PASSWORD="$(openssl rand -base64 18)"
+```
+
+Read the admin password:
+
+```bash
+kubectl -n kubero get secret kubero-secrets -o jsonpath='{.data.KUBERO_ADMIN_PASSWORD}' | base64 -d; echo
+```
+
 ### Access (no Ingress yet)
 
 ```bash
