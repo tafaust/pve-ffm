@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubero-operator-controller-manager
+  namespace: kubero-operator-system
+spec:
+  template:
+    spec:
+      nodeSelector:
+        homelab.tafaust.org/role: worker

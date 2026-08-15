@@ -35,7 +35,7 @@ Same selector on the metrics-server overlay (`clusters/prod/manifests/metrics-se
 | Component | On control plane? |
 |-----------|-------------------|
 | Cilium agent, Longhorn manager/engine (DaemonSets) | Yes — every node |
-| Cilium operator, Longhorn UI, ingress-nginx, cert-manager, ESO, SeaweedFS, StackGres, Keycloak, metrics-server | No — workers only |
+| Cilium operator, Longhorn UI, ingress-nginx, cert-manager, ESO, SeaweedFS, StackGres, Keycloak, metrics-server, Kubero | No — workers only |
 | Argo CD (upstream install, not in Git yet) | Patch to workers (below) |
 
 After Argo syncs, delete pods still bound to `k3s-control-01` (except DaemonSets) so they reschedule:

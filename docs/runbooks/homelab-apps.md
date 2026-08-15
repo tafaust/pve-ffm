@@ -2,23 +2,28 @@
 
 Do **not** install Dokploy on this cluster. Dokploy is a Docker Compose / Swarm PaaS. This lab is GitOps on k3s (Argo CD + Longhorn + ingress-nginx + cert-manager).
 
-## Recommendation: Kubero
+## Kubero (provisioned)
 
-Closest Dokploy-like UX that is **Kubernetes-native**: Git push or image deploy, templates (WordPress, Grafana, …), add-ons (Postgres, Redis), review apps. Two pods (UI + operator); data in-cluster.
+Kubernetes-native PaaS: Git push or image deploy, templates, add-ons (Postgres, Redis). Argo apps:
 
-- Docs: https://www.kubero.dev/
-- Chart: https://github.com/kubero-dev/kubero
+- `kubero-operator` — CRDs + controller (`clusters/prod/manifests/kubero/operator/`)
+- `kubero` — UI Helm chart from [kubero-operator](https://github.com/kubero-dev/kubero-operator), workers + Longhorn
 
-Install later as an Argo `Application` under `clusters/prod/apps/` with:
-
-```yaml
-nodeSelector:
-  homelab.tafaust.org/role: worker
-```
+Docs: https://www.kubero.dev/
 
 Keep Argo CD as source of truth for **platform**. Use Kubero for **userspace** apps you would have clicked together in Dokploy.
 
-### Alternatives (skip for now)
+### Access (no Ingress yet)
+
+```bash
+export KUBECONFIG=~/.kube/configs/pve-ffm.yaml
+kubectl -n kubero port-forward svc/kubero 2000:2000
+# http://localhost:2000
+```
+
+Enable Ingress later in `clusters/prod/apps/platform/kubero.yaml` (`ingress.enabled`, hostname, cert-manager annotations). Do not expose the UI on the public internet without auth.
+
+### Alternatives (skip)
 
 | Tool | Why not first |
 |------|----------------|
@@ -30,7 +35,7 @@ Keep Argo CD as source of truth for **platform**. Use Kubero for **userspace** a
 
 ## Migrate one Dokploy app
 
-Wait until [cluster-health.md](cluster-health.md) “Ready for apps” is true. Then:
+Wait until [cluster-health.md](cluster-health.md) “Ready for apps” is true. Then either click-deploy in Kubero or:
 
 1. Stateless service first (no volume).
 2. `Deployment` + `Service` + `Ingress` + `Certificate` (cert-manager).
@@ -38,13 +43,14 @@ Wait until [cluster-health.md](cluster-health.md) “Ready for apps” is true. 
 4. Argo `Application` pointing at a path under `clusters/prod/manifests/<app>/`.
 5. Cut DNS when Ingress + TLS work. Leave Dokploy running until then.
 
-Stateful next: Longhorn PVC (`defaultReplicaCount: 2` needs both workers). Databases: StackGres once that operator is Healthy, or a single Longhorn Postgres for tiny apps.
+Stateful next: Longhorn PVC (`defaultReplicaCount: 2` needs both workers). Databases: Kubero add-on, StackGres once that operator is Healthy, or a single Longhorn Postgres for tiny apps.
 
 ## Platform you already have
 
 | Need | Component |
 |------|-----------|
 | GitOps | Argo CD |
+| App PaaS | Kubero |
 | Ingress / TLS | ingress-nginx + cert-manager |
 | Block storage | Longhorn |
 | Object storage | SeaweedFS |

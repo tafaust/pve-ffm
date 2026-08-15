@@ -1,0 +1,26 @@
+# Kubero operator (CRDs + controller). UI is a separate Application (kubero.yaml).
+# Upstream: https://github.com/kubero-dev/kubero-operator
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubero-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "45"
+    gitops.scaffold/chart-pin: "Pin operator.yaml URL to a commit SHA in manifests/kubero/operator/kustomization.yaml"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/tafaust/pve-ffm.git
+    targetRevision: main
+    path: clusters/prod/manifests/kubero/operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubero-operator-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

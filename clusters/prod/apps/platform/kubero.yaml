@@ -1,0 +1,43 @@
+# Kubero UI — Helm from kubero-operator repo (not a published chart repo).
+# https://github.com/kubero-dev/kubero-operator/tree/main/helm-charts/kubero
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubero
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+    gitops.scaffold/chart-pin: "Pin targetRevision to a kubero-operator git tag/SHA"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/kubero-dev/kubero-operator.git
+    targetRevision: main
+    path: helm-charts/kubero
+    helm:
+      releaseName: kubero
+      values: |
+        replicaCount: 1
+        nodeSelector:
+          homelab.tafaust.org/role: worker
+        ingress:
+          enabled: false
+        kubero:
+          namespace: kubero
+          context: inClusterContext
+          database:
+            storageClassName: longhorn
+            size: 1Gi
+          auditLogs:
+            enabled: false
+            storageClassName: longhorn
+            size: 0.1Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubero
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -72,6 +72,8 @@ kubectl apply -n argocd -f clusters/prod/argocd/root-app.yaml
 | 20 | stackgres-operator |
 | 30 | ingress-nginx |
 | 40 | seaweedfs, infisical, keycloak |
+| 45 | kubero-operator |
+| 50 | kubero (UI) |
 
 Cilium must be Healthy before workloads that need pod networking. Longhorn needs Cilium + `open-iscsi` on nodes (Ansible `k3s_node` role).
 

@@ -8,6 +8,8 @@ resources:
   - infisical.yaml
   - ingress-nginx.yaml
   - keycloak.yaml
+  - kubero-operator.yaml
+  - kubero.yaml
   - longhorn.yaml
   - metrics-server.yaml
   - stackgres-operator.yaml
