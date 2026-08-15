@@ -8,3 +8,7 @@ spec:
     spec:
       nodeSelector:
         homelab.tafaust.org/role: worker
+      containers:
+        # Upstream gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0 is gone (404).
+        - name: kube-rbac-proxy
+          image: quay.io/brancz/kube-rbac-proxy:v0.18.2
