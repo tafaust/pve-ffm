@@ -77,7 +77,7 @@
 - name: Deploy slapd TLS cn=config LDIF
   ansible.builtin.template:
     src: olc-tls.ldif.j2
-    dest: /tmp/ansible-openldap-olc-tls.ldif
+    dest: "{{ openldap_staging_dir }}/olc-tls.ldif"
     mode: "0600"
   when:
     - openldap_tls_enabled | bool
@@ -92,7 +92,7 @@
       - -H
       - ldapi:///
       - -f
-      - /tmp/ansible-openldap-olc-tls.ldif
+      - "{{ openldap_staging_dir }}/olc-tls.ldif"
   register: _openldap_olc_tls_apply
   changed_when: _openldap_olc_tls_apply.rc == 0
   failed_when: _openldap_olc_tls_apply.rc != 0

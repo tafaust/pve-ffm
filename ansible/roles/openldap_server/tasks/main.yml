@@ -66,12 +66,20 @@
   ansible.builtin.include_tasks: tls.yml
   when: openldap_tls_enabled | bool
 
+- name: Staging dir for LDIFs
+  ansible.builtin.file:
+    path: "{{ openldap_staging_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
 - name: LDAP data and OLC (ldapi SASL EXTERNAL as root)
   block:
     - name: Deploy base OU LDIF
       ansible.builtin.template:
         src: 01-ous.ldif.j2
-        dest: /tmp/ansible-openldap-01-ous.ldif
+        dest: "{{ openldap_staging_dir }}/01-ous.ldif"
         mode: "0600"
 
     - name: Apply base OU LDIF
@@ -84,7 +92,7 @@
           - -H
           - ldapi:///
           - -f
-          - /tmp/ansible-openldap-01-ous.ldif
+          - "{{ openldap_staging_dir }}/01-ous.ldif"
       register: _ldapadd_ous
       changed_when: _ldapadd_ous.rc == 0
       failed_when: _ldapadd_ous.rc not in [0, 68]
@@ -96,7 +104,7 @@
     - name: Deploy demo user LDIF
       ansible.builtin.template:
         src: 02-demo-user.ldif.j2
-        dest: /tmp/ansible-openldap-02-demo.ldif
+        dest: "{{ openldap_staging_dir }}/02-demo.ldif"
         mode: "0600"
       when: openldap_create_demo_user | bool
 
@@ -110,7 +118,7 @@
           - -H
           - ldapi:///
           - -f
-          - /tmp/ansible-openldap-02-demo.ldif
+          - "{{ openldap_staging_dir }}/02-demo.ldif"
       register: _ldapadd_demo
       changed_when: _ldapadd_demo.rc == 0
       failed_when: _ldapadd_demo.rc not in [0, 68]

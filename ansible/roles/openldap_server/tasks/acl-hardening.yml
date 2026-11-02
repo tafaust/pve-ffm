@@ -10,6 +10,7 @@
     executable: /bin/bash
   register: _openldap_olc_access_list
   changed_when: false
+  check_mode: false
   when:
     - openldap_olc_tuning | bool
     - openldap_olc_harden_default_acls | bool
@@ -17,7 +18,7 @@
 - name: Deploy olcAccess cleanup LDIF
   ansible.builtin.template:
     src: olc-mdb-access-cleanup.ldif.j2
-    dest: /tmp/ansible-openldap-olc-access-cleanup.ldif
+    dest: "{{ openldap_staging_dir }}/olc-access-cleanup.ldif"
     mode: "0600"
   when:
     - openldap_olc_tuning | bool
@@ -33,7 +34,7 @@
       - -H
       - ldapi:///
       - -f
-      - /tmp/ansible-openldap-olc-access-cleanup.ldif
+      - "{{ openldap_staging_dir }}/olc-access-cleanup.ldif"
   register: _openldap_acl_cleanup
   changed_when: _openldap_acl_cleanup.rc == 0
   failed_when: _openldap_acl_cleanup.rc != 0

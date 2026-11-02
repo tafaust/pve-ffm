@@ -19,6 +19,7 @@
     executable: /bin/bash
   register: _openldap_mdb_dn_search
   changed_when: false
+  check_mode: false
 
 - name: Set MDB config DN fact
   ansible.builtin.set_fact:
@@ -33,12 +34,26 @@
 - name: Harden default olcAccess rules
   ansible.builtin.include_tasks: acl-hardening.yml
 
+- name: Read current olcLogLevel and olcSizeLimit (read-only)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ldapsearch -Q -Y EXTERNAL -H ldapi:/// -LLL -o ldif-wrap=no -b cn=config -s base olcLogLevel | sed -n 's/^olcLogLevel: //p' | paste -sd' '
+    ldapsearch -Q -Y EXTERNAL -H ldapi:/// -LLL -o ldif-wrap=no -b "{{ openldap_mdb_config_dn }}" -s base olcSizeLimit | sed -n 's/^olcSizeLimit: //p'
+  args:
+    executable: /bin/bash
+  register: _olc_current
+  changed_when: false
+  check_mode: false
+  when: openldap_olc_tuning | bool
+
 - name: Tune cn=config log level
   ansible.builtin.template:
     src: olc-cn-config-loglevel.ldif.j2
-    dest: /tmp/ansible-openldap-olc-loglevel.ldif
+    dest: "{{ openldap_staging_dir }}/olc-loglevel.ldif"
     mode: "0600"
-  when: openldap_olc_tuning | bool
+  when:
+    - openldap_olc_tuning | bool
+    - (_olc_current.stdout_lines[0] | default('')) != (openldap_olc_loglevel | string)
 
 - name: Apply cn=config log level
   ansible.builtin.command:
@@ -49,7 +64,7 @@
       - -H
       - ldapi:///
       - -f
-      - /tmp/ansible-openldap-olc-loglevel.ldif
+      - "{{ openldap_staging_dir }}/olc-loglevel.ldif"
   register: _olc_log
   changed_when: >-
     _olc_log.rc == 0 and (
@@ -57,14 +72,18 @@
     or 'modify' in (_olc_log.stdout | default('') | lower)
     )
   failed_when: _olc_log.rc != 0
-  when: openldap_olc_tuning | bool
+  when:
+    - openldap_olc_tuning | bool
+    - (_olc_current.stdout_lines[0] | default('')) != (openldap_olc_loglevel | string)
 
 - name: Tune MDB size limit and tool threads
   ansible.builtin.template:
     src: olc-mdb-limits.ldif.j2
-    dest: /tmp/ansible-openldap-olc-limits.ldif
+    dest: "{{ openldap_staging_dir }}/olc-limits.ldif"
     mode: "0600"
-  when: openldap_olc_tuning | bool
+  when:
+    - openldap_olc_tuning | bool
+    - (_olc_current.stdout_lines[1] | default('')) != (openldap_olc_sizelimit | string)
 
 - name: Apply MDB limits
   ansible.builtin.command:
@@ -75,7 +94,7 @@
       - -H
       - ldapi:///
       - -f
-      - /tmp/ansible-openldap-olc-limits.ldif
+      - "{{ openldap_staging_dir }}/olc-limits.ldif"
   register: _olc_lim
   changed_when: >-
     _olc_lim.rc == 0 and (
@@ -83,7 +102,9 @@
     or 'modify' in (_olc_lim.stdout | default('') | lower)
     )
   failed_when: _olc_lim.rc != 0
-  when: openldap_olc_tuning | bool
+  when:
+    - openldap_olc_tuning | bool
+    - (_olc_current.stdout_lines[1] | default('')) != (openldap_olc_sizelimit | string)
 
 - name: Install OLC index helper script
   ansible.builtin.template:
@@ -109,6 +130,7 @@
   register: _olc_acl_grep
   failed_when: false
   changed_when: false
+  check_mode: false
   when:
     - openldap_olc_tuning | bool
     - openldap_olc_apply_bmuni_style_acls | bool
@@ -116,7 +138,7 @@
 - name: Deploy bm-uni-style olcAccess LDIF
   ansible.builtin.template:
     src: olc-mdb-access.ldif.j2
-    dest: /tmp/ansible-openldap-olc-access.ldif
+    dest: "{{ openldap_staging_dir }}/olc-access.ldif"
     mode: "0600"
   when:
     - openldap_olc_tuning | bool
@@ -132,7 +154,7 @@
       - -H
       - ldapi:///
       - -f
-      - /tmp/ansible-openldap-olc-access.ldif
+      - "{{ openldap_staging_dir }}/olc-access.ldif"
   register: _olc_acl
   changed_when: >-
     _olc_acl.rc == 0 and (
