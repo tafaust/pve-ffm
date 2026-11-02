@@ -10,13 +10,37 @@
   when: common_hardening_apt_upgrade | bool
   tags: [upgrade]
 
-- name: Install unattended-upgrades and UFW
+- name: Install unattended-upgrades
   ansible.builtin.apt:
-    name:
-      - unattended-upgrades
-      - ufw
+    name: unattended-upgrades
     state: present
-  when: common_hardening_manage_unattended | bool or common_hardening_manage_ufw | bool
+  when: common_hardening_manage_unattended | bool
+
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: common_hardening_manage_ufw | bool
+
+- name: Check nftables-managed host firewall (backend nftables, read-only)
+  ansible.builtin.command: systemctl is-active nftables.service
+  register: _nft_active
+  changed_when: false
+  failed_when: _nft_active.stdout != "active"
+  check_mode: false
+  when: common_hardening_firewall_backend == "nftables"
+
+- name: Check UFW is inactive (backend nftables, read-only)
+  ansible.builtin.shell: |
+    set -o pipefail
+    if command -v ufw >/dev/null; then ufw status | head -n1; else echo "Status: inactive"; fi
+  args:
+    executable: /bin/bash
+  register: _ufw_inactive
+  changed_when: false
+  failed_when: "'Status: inactive' not in _ufw_inactive.stdout"
+  check_mode: false
+  when: common_hardening_firewall_backend == "nftables"
 
 - name: Enable unattended security upgrades
   ansible.builtin.copy:

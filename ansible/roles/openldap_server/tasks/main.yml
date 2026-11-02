@@ -1,15 +1,19 @@
 ---
-- name: Require LDAP admin password
-  ansible.builtin.assert:
-    that:
-      - ldap_admin_bind_password | length > 0
-    fail_msg: "Set ldap_admin_bind_password (Vault / -e @secrets.yml). Never commit plaintext."
-
 - name: Check whether slapd is already installed
   ansible.builtin.command: dpkg-query -W -f='${Status}' slapd
   register: _openldap_slapd_dpkg
   changed_when: false
   failed_when: false
+  check_mode: false
+
+# Only needed to preseed a fresh install; afterwards the role talks to slapd via ldapi:/// SASL EXTERNAL as root
+# (works with olcSecurity simple_bind and never sends the admin password over a socket).
+- name: Require LDAP admin password (fresh install only)
+  ansible.builtin.assert:
+    that:
+      - ldap_admin_bind_password | length > 0
+    fail_msg: "Set ldap_admin_bind_password (Vault / -e @secrets.yml). Never commit plaintext."
+  when: _openldap_slapd_dpkg.stdout != "install ok installed"
 
 - name: Preseed slapd debconf (domain, org, admin password)
   ansible.builtin.debconf:
@@ -62,23 +66,8 @@
   ansible.builtin.include_tasks: tls.yml
   when: openldap_tls_enabled | bool
 
-- name: LDAP data and OLC (ephemeral admin credentials)
+- name: LDAP data and OLC (ldapi SASL EXTERNAL as root)
   block:
-    - name: Stage ephemeral admin bind password
-      ansible.builtin.copy:
-        dest: "/tmp/.ansible-openldap-admin-{{ ansible_facts.machine_id }}"
-        owner: root
-        group: root
-        mode: "0600"
-        content: "{{ ldap_admin_bind_password }}"
-      no_log: true
-      register: _openldap_admin_pw_file
-
-    - name: Set admin password file fact
-      ansible.builtin.set_fact:
-        openldap_admin_password_file: "{{ _openldap_admin_pw_file.dest }}"
-      no_log: true
-
     - name: Deploy base OU LDIF
       ansible.builtin.template:
         src: 01-ous.ldif.j2
@@ -89,13 +78,11 @@
       ansible.builtin.command:
         argv:
           - ldapadd
-          - -x
+          - -Q
+          - -Y
+          - EXTERNAL
           - -H
-          - ldap://127.0.0.1
-          - -D
-          - "{{ ldap_admin_bind_dn }}"
-          - -y
-          - "{{ openldap_admin_password_file }}"
+          - ldapi:///
           - -f
           - /tmp/ansible-openldap-01-ous.ldif
       register: _ldapadd_ous
@@ -117,13 +104,11 @@
       ansible.builtin.command:
         argv:
           - ldapadd
-          - -x
+          - -Q
+          - -Y
+          - EXTERNAL
           - -H
-          - ldap://127.0.0.1
-          - -D
-          - "{{ ldap_admin_bind_dn }}"
-          - -y
-          - "{{ openldap_admin_password_file }}"
+          - ldapi:///
           - -f
           - /tmp/ansible-openldap-02-demo.ldif
       register: _ldapadd_demo
@@ -132,13 +117,6 @@
       when: openldap_create_demo_user | bool
       no_log: true
 
-  always:
-    - name: Remove ephemeral admin bind password
-      ansible.builtin.file:
-        path: "{{ openldap_admin_password_file }}"
-        state: absent
-      when: openldap_admin_password_file is defined
-      no_log: true
 
 - name: Configure OpenLDAP backups
   ansible.builtin.include_tasks: backup.yml
