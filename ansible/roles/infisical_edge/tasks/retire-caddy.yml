@@ -1,8 +1,9 @@
 ---
 # Runs only with infisical_edge_caddy_enabled=false, after the Caddy container is gone (compose --remove-orphans).
-# Certificates/keys under {{ infisical_edge_dir }}/certs and the cert-reader token under /etc/homelab are NOT
-# deleted here (sensitive leftovers need an explicit decision); the token is revoked by removing the
-# ServiceAccount in tafaust/homelab.
+# The cert-reader token (/etc/homelab, SA revoked in tafaust/homelab 2026-11-03) and the pulled LE copy
+# ({{ infisical_edge_dir }}/certs/le) are removed (approved 2026-11-03, HANDOVER item 15). The old self-signed CA/leaf
+# files directly under {{ infisical_edge_dir }}/certs (homelab-root-ca.crt, tls.*) and backups/Caddyfile.retired are
+# NOT deleted here (separate decision, homelab HANDOVER item 8 / rollback copy).
 - name: Stop and disable homelab-cert-sync.timer
   ansible.builtin.systemd_service:
     name: homelab-cert-sync.timer
@@ -29,3 +30,11 @@
     - /etc/systemd/system/homelab-cert-sync.service
     - /usr/local/sbin/homelab-cert-sync
   notify: Reload systemd
+
+- name: Remove the revoked cert-reader token and the pulled LE certificate copy
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/homelab/cert-reader.token
+    - "{{ infisical_edge_dir }}/certs/le"
