@@ -1,8 +1,16 @@
 ---
-- name: Reload sshd
+# Validate before reload: handlers run in file order, so a failing `sshd -t`
+# stops the reload and the running sshd keeps its last good config.
+- name: Validate sshd config
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Reload sshd
+
+- name: Reload sshd service
   ansible.builtin.service:
     name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
     state: reloaded
+  listen: Reload sshd
 
 - name: Restart fail2ban
   ansible.builtin.service:
