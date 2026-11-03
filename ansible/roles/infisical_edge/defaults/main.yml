@@ -28,4 +28,4 @@ infisical_edge_backend_allowed_sources:
 
 # true = legacy path (Caddy on :443 via NetBird, LE wildcard pulled by homelab-cert-sync) stays up in parallel.
 # false = Caddy container, Caddyfile, homelab-cert-sync timer/service/script and the wt0 :443 firewall rules are removed.
-infisical_edge_caddy_enabled: true
+infisical_edge_caddy_enabled: false
