@@ -1,0 +1,65 @@
+# Managed by Ansible (pve-ffm role infisical_edge). Infisical self-hosted, based on upstream docker-compose.prod.yml.
+# Secrets live in .env (out of band, never templated).
+name: infisical
+services:
+  backend:
+    container_name: infisical-backend
+    image: {{ infisical_edge_image }}
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      # loopback: local health checks{{ " and Caddy" if infisical_edge_caddy_enabled else "" }}
+      - "127.0.0.1:{{ infisical_edge_backend_port }}:8080"
+      # vmbr2: Traefik in k3s (TLS terminated there); nftables (table inet hostfw) limits sources to the k3s nodes/pods
+      - "{{ infisical_edge_lan_ip }}:{{ infisical_edge_backend_port }}:8080"
+    networks: [infisical]
+  redis:
+    container_name: infisical-redis
+    image: {{ infisical_edge_redis_image }}
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis_data:/data]
+    networks: [infisical]
+  db:
+    container_name: infisical-db
+    image: {{ infisical_edge_postgres_image }}
+    restart: unless-stopped
+    env_file: .env
+    volumes: [pg_data:/var/lib/postgresql/data]
+    networks: [infisical]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+{% if infisical_edge_caddy_enabled %}
+  caddy:
+    container_name: infisical-caddy
+    image: {{ infisical_edge_caddy_image }}
+    restart: unless-stopped
+    network_mode: host
+    depends_on: [backend]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+      - caddy_data:/data
+{% endif %}
+volumes:
+  pg_data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: {{ infisical_edge_dir }}/data/postgres}
+  redis_data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: {{ infisical_edge_dir }}/data/redis}
+{% if infisical_edge_caddy_enabled %}
+  caddy_data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: {{ infisical_edge_dir }}/data/caddy}
+{% endif %}
+networks:
+  infisical: {}

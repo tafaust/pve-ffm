@@ -1,4 +1,4 @@
 ---
-ansible_host: infisical-01
+ansible_host: 100.65.141.44 # NetBird IP (SSH is only open on wt0)
 ansible_user: thomas
 ansible_python_interpreter: /usr/bin/python3.12

@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  role_name: infisical_edge
+  description: Edge of the live Infisical stack on infisical-01 (/srv/infisical compose file, host nftables, Caddy retirement).
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
