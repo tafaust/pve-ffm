@@ -1,0 +1,52 @@
+---
+- name: Host firewall (table inet hostfw)
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0755"
+    backup: true
+    validate: nft -c -f %s
+  notify: Load hostfw nftables table
+
+- name: Apply firewall before changing the published ports
+  ansible.builtin.meta: flush_handlers
+
+- name: Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ infisical_edge_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+  register: _infisical_edge_compose
+
+- name: Validate Compose file
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ infisical_edge_dir }}/docker-compose.yml", config, --quiet]
+    chdir: "{{ infisical_edge_dir }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Converge Infisical stack (recreates only changed services, removes Caddy when disabled)
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ infisical_edge_dir }}/docker-compose.yml", up, -d, --remove-orphans]
+    chdir: "{{ infisical_edge_dir }}"
+  when: _infisical_edge_compose is changed
+  changed_when: true
+
+- name: Wait for Infisical API on the vmbr2 address
+  ansible.builtin.uri:
+    url: "http://{{ infisical_edge_lan_ip }}:{{ infisical_edge_backend_port }}/api/status"
+    status_code: 200
+  register: _infisical_edge_status
+  retries: 30
+  delay: 5
+  until: _infisical_edge_status.status == 200
+  when: not ansible_check_mode
+
+- name: Retire Caddy and homelab-cert-sync
+  ansible.builtin.include_tasks: retire-caddy.yml
+  when: not infisical_edge_caddy_enabled

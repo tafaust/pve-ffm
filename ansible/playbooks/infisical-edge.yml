@@ -1,0 +1,11 @@
+---
+# Edge of the live Infisical stack on infisical-01 (compose ports, host firewall, Caddy retirement).
+# Phase 1 (Traefik path in parallel to Caddy): ansible-playbook playbooks/infisical-edge.yml --check --diff, then without --check
+# Phase 2 (after the DNS cutover to Traefik, done 2026-11-03): default is now infisical_edge_caddy_enabled=false (Caddy retired)
+# See docs/runbooks/infisical-traefik.md.
+- name: Infisical edge (infisical-01)
+  hosts: infisical_servers
+  become: true
+  tags: [infisical, firewall]
+  roles:
+    - role: infisical_edge

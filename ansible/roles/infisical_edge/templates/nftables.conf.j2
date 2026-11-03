@@ -1,0 +1,46 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible (pve-ffm role infisical_edge).
+# Homelab host firewall (infisical-01). Only manages its own table; does NOT flush the ruleset
+# (Docker and NetBird keep their own tables).
+table inet hostfw
+delete table inet hostfw
+table inet hostfw {
+  chain input {
+    type filter hook input priority filter - 10; policy drop;
+    ct state established,related accept
+    ct state invalid drop
+    iif "lo" accept
+    meta l4proto icmp accept
+    meta l4proto ipv6-icmp accept
+    udp dport 51820 accept comment "NetBird WireGuard/ICE (direct P2P)"
+    iifname "wt0" tcp dport 22 accept comment "SSH via NetBird only"
+{% if infisical_edge_caddy_enabled %}
+    iifname "wt0" tcp dport 443 accept comment "Infisical (Caddy) via NetBird only"
+{% endif %}
+    limit rate 5/minute burst 10 packets log prefix "hostfw drop: " level info
+  }
+  chain wt0_guard {
+    # Defense in depth: NetBird (nftables mode) inserts a blanket 'iifname "wt0" accept' into
+    # foreign input/forward chains. It never touches prerouting, so the wt0 port allowlist is
+    # enforced here as well (after conntrack, priority mangle). Same design as ldap-01.
+    type filter hook prerouting priority mangle; policy accept;
+    iifname != "wt0" accept
+    ct state established,related accept
+    fib daddr type != local accept
+    meta l4proto { icmp, ipv6-icmp } accept
+{% if infisical_edge_caddy_enabled %}
+    tcp dport { 22, 443 } accept comment "wt0 allowlist: SSH, Infisical HTTPS"
+{% else %}
+    tcp dport 22 accept comment "wt0 allowlist: SSH"
+{% endif %}
+    limit rate 5/minute burst 10 packets log prefix "hostfw wt0 drop: " level info
+    drop
+  }
+  chain forward {
+    type filter hook forward priority filter - 10; policy accept;
+    # Docker DNATs {{ infisical_edge_lan_ip }}:{{ infisical_edge_backend_port }} to the backend container, so the
+    # allow lives in forward (not input). Only the k3s nodes/pods (Traefik) may open connections.
+    iifname "ens18" ip saddr { {{ infisical_edge_backend_allowed_sources | join(", ") }} } tcp dport 8080 ct status dnat ct state new accept comment "Infisical backend from k3s (Traefik)"
+    iifname { "ens18", "wt0" } ct state new drop comment "no other Docker published-port exposure via LAN/NetBird"
+  }
+}

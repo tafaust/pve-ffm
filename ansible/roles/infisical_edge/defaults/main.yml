@@ -1,0 +1,31 @@
+---
+# infisical_edge: manages ONLY the non-secret edge of the live Infisical stack on infisical-01:
+#   - /srv/infisical/docker-compose.yml (images, port bindings, optional Caddy sidecar)
+#   - /etc/nftables.conf (table inet hostfw; Docker/NetBird tables are left alone)
+#   - retirement of Caddy + homelab-cert-sync once TLS is terminated by Traefik in k3s
+# It never templates /srv/infisical/.env (secrets stay out of band) and never touches the database.
+# The older infisical_server role (/opt/infisical, port 80) describes the first install and is NOT
+# applied to infisical-01 anymore.
+
+infisical_edge_dir: /srv/infisical
+infisical_edge_image: infisical/infisical:v0.167.4
+infisical_edge_redis_image: redis:7.4.12-alpine
+infisical_edge_postgres_image: postgres:16.15-alpine
+infisical_edge_caddy_image: caddy:2.11.7-alpine
+
+# vmbr2 address of this host. Traefik (k3s) reaches the backend here, see
+# tafaust/homelab kubernetes/platform/external-services.
+infisical_edge_lan_ip: 192.168.20.201
+infisical_edge_backend_port: 8080
+
+# Sources allowed to open new connections to the backend port on ens18:
+# k3s node vmbr2 IPs (Cilium masquerades pod egress to the node IP) and the pod CIDR (in case masquerading is off).
+infisical_edge_backend_allowed_sources:
+  - 192.168.20.230 # k3s-control-01
+  - 192.168.20.233 # k3s-worker-01
+  - 192.168.20.234 # k3s-worker-02
+  - 10.42.0.0/16 # k3s pod CIDR
+
+# true = legacy path (Caddy on :443 via NetBird, LE wildcard pulled by homelab-cert-sync) stays up in parallel.
+# false = Caddy container, Caddyfile, homelab-cert-sync timer/service/script and the wt0 :443 firewall rules are removed.
+infisical_edge_caddy_enabled: false
