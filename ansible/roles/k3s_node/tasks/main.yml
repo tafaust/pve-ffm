@@ -114,16 +114,29 @@
     state: started
   when: k3s_node_role == 'agent'
 
+- name: Read node taints (server)
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - node
+      - "{{ inventory_hostname }}"
+      - -o
+      - 'jsonpath={range .spec.taints[*]}{.key}:{.effect}{"\n"}{end}'
+  register: _k3s_node_taints
+  changed_when: false
+  when: k3s_node_role == 'server'
+  tags: [k3s_taint]
+
+# Idempotent: taint only when missing; fails loudly (no failed_when: false).
 - name: Ensure control-plane NoSchedule taint
   ansible.builtin.command: >
-    /usr/local/bin/k3s kubectl taint nodes {{ inventory_hostname }}
-    node-role.kubernetes.io/control-plane=true:NoSchedule --overwrite
-  register: _k3s_control_plane_taint
-  changed_when: >-
-    'modified' in (_k3s_control_plane_taint.stdout | default(''))
-    or 'tainted' in (_k3s_control_plane_taint.stdout | default(''))
-  failed_when: false
-  when: k3s_node_role == 'server'
+    /usr/local/bin/k3s kubectl taint nodes {{ inventory_hostname }} {{ k3s_control_plane_taint }}
+  when:
+    - k3s_node_role == 'server'
+    - (k3s_control_plane_taint | regex_replace('=[^:]*:', ':')) not in _k3s_node_taints.stdout_lines
+  tags: [k3s_taint]
 
 - name: Ensure k3s node labels
   ansible.builtin.command: >
