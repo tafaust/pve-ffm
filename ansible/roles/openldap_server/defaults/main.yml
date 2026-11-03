@@ -20,6 +20,8 @@ openldap_demo_groupname: demo
 
 # cn=config tuning (bm-uni ldap-02 spirit; dynamic OLC not slapd.conf).
 openldap_olc_tuning: true
+# Persistent root-only dir for staged LDIFs (not /tmp: a reboot would make template tasks report changed).
+openldap_staging_dir: /root/.ansible-openldap
 openldap_olc_apply_bmuni_style_acls: true
 openldap_olc_harden_default_acls: true
 openldap_olc_loglevel: stats

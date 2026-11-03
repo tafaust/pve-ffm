@@ -1,8 +1,11 @@
 ---
 # Ubuntu 24.04 LTS (Debian) + openSUSE Tumbleweed (Suse). Firewall: UFW vs firewalld; same vars.
 common_hardening_manage_sshd: true
-# Host firewall (UFW on Debian, firewalld on SUSE).
-common_hardening_manage_ufw: true
+# Host firewall backend: "ufw" (Debian; firewalld on SUSE) or "nftables" (firewall owned outside this role,
+# e.g. ldap-01's /etc/nftables.conf table inet hostfw). With "nftables" the role never installs, enables or
+# edits UFW; it only asserts that nftables.service is active and UFW is inactive (no changes).
+common_hardening_firewall_backend: ufw
+common_hardening_manage_ufw: "{{ common_hardening_firewall_backend == 'ufw' }}"
 common_hardening_manage_unattended: true
 # If true, require SSH pubkey for ansible_user before apply (lockout risk otherwise).
 common_hardening_disable_password_ssh: true

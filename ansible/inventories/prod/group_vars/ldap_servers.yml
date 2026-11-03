@@ -3,15 +3,20 @@
 ldap_server_domain: tafaust.org
 ldap_organization: tafaust
 
-# Dedicated LDAP VM: no k3s-wide lab allow-all; explicit ports from lab + VPN CIDRs.
-common_hardening_ufw_allow_lab_cidr_all: false
-# Remote LDAPS only; plain 389 is localhost / lab apps (not in UFW allow list).
-common_hardening_ufw_allowed_tcp_ports:
-  - 22
-  - 636
-  - "{{ ldap_webui_listen_port }}"
+# Host firewall is nftables (table inet hostfw in /etc/nftables.conf, NetBird-only allowlist incl. the wt0_guard
+# prerouting chain); UFW stays disabled. The role only checks nftables active / UFW inactive.
+# Rollback to UFW on the VM: /usr/local/sbin/hostfw-rollback.
+common_hardening_firewall_backend: nftables
+# Packages: unattended-upgrades only; no full upgrade from the playbook (keeps runs idempotent).
+common_hardening_apt_upgrade: false
+# phpLDAPadmin is disabled on ldap-01 (apache2 stopped/disabled); admin via ldaps / Authentik.
+ldap_webui_enabled: false
 ldap_webui_listen_port: 8080
-common_hardening_ufw_revoke_tcp_ports:
-  - 389
-openldap_tls_enabled: true
+# TLS is the Let's Encrypt wildcard deployed by homelab-cert-sync (/etc/ldap/ssl/le, olcTLS* set out of band);
+# the role must not generate/install its self-signed cert or rewrite olcTLS*.
+openldap_tls_enabled: false
+# ACLs, overlays (memberof/refint), olcSecurity and password hashing are managed out of band (homelab prep
+# script); keep the role's ACL tasks off so they never overwrite them.
+openldap_olc_harden_default_acls: false
+openldap_olc_apply_bmuni_style_acls: false
 openldap_remote_plain_ldap: false

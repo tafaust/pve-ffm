@@ -4,8 +4,12 @@ set -euo pipefail
 BACKUP_DIR="{{ openldap_backup_dir }}"
 RETENTION_DAYS="{{ openldap_backup_retention_days }}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-OUT="${BACKUP_DIR}/slapcat-${STAMP}.ldif"
 umask 077
-slapcat -n 0 -l "${OUT}"
-gzip -9 "${OUT}"
+# -n 0 = cn=config, -n 1 = data ({{ ldap_base_dn }}). Write to .tmp first so a failed dump never looks complete.
+for db in 0 1; do
+  OUT="${BACKUP_DIR}/slapcat-${STAMP}-n${db}.ldif"
+  slapcat -n "${db}" -l "${OUT}.tmp"
+  mv "${OUT}.tmp" "${OUT}"
+  gzip -9 "${OUT}"
+done
 find "${BACKUP_DIR}" -name 'slapcat-*.ldif.gz' -mtime +"${RETENTION_DAYS}" -delete
