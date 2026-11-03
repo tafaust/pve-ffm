@@ -2,3 +2,6 @@
 ansible_host: 100.65.141.44 # NetBird IP (SSH is only open on wt0)
 ansible_user: thomas
 ansible_python_interpreter: /usr/bin/python3.12
+# Host firewall is nftables (table inet hostfw in /etc/nftables.conf: SSH only on wt0, 8080 only from k3s/pod CIDR),
+# like ldap-01. UFW stays disabled; overrides the stale infisical_servers group UFW vars.
+common_hardening_firewall_backend: nftables

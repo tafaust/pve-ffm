@@ -30,6 +30,20 @@
   check_mode: false
   when: common_hardening_firewall_backend == "nftables"
 
+# Backend nftables owns the host firewall; UFW must stay off. If an earlier run under the default "ufw"
+# backend enabled it (infisical-01 on 2026-11-03), turn it off again. The nftables table is not touched.
+- name: Disable UFW if active (backend nftables)
+  ansible.builtin.shell: |
+    set -o pipefail
+    if command -v ufw >/dev/null && ufw status | head -n1 | grep -q 'Status: active'; then
+      ufw --force disable >/dev/null && echo disabled
+    fi
+  args:
+    executable: /bin/bash
+  register: _ufw_disable
+  changed_when: "'disabled' in _ufw_disable.stdout"
+  when: common_hardening_firewall_backend == "nftables"
+
 - name: Check UFW is inactive (backend nftables, read-only)
   ansible.builtin.shell: |
     set -o pipefail
